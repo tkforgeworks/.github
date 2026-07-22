@@ -1,0 +1,79 @@
+# TK ForgeWorks standard: generate release-notes markdown from commit
+# subjects since the previous tag (previous stable tag for final releases),
+# with Jira ticket linking. Consume from a release workflow:
+#
+#   jobs:
+#     release-notes:
+#       uses: tkforgeworks/.github/.github/workflows/release-notes.yml@main
+#       with:
+#         ticket-prefix: CGUI
+#
+#     build:
+#       needs: release-notes
+#       ...
+#       - uses: softprops/action-gh-release@v2
+#         with:
+#           body: ${{ needs.release-notes.outputs.body }}
+#
+# JIRA_BASE_URL is read from the caller's repo/org variables, or passed
+# explicitly via the jira-base-url input.
+
+name: Release Notes
+
+on:
+  workflow_call:
+    inputs:
+      ticket-prefix:
+        description: 'Jira project key for ticket linking (e.g. CGUI, ANV)'
+        required: false
+        type: string
+        default: ''
+      jira-base-url:
+        description: 'Jira browse base URL; defaults to the JIRA_BASE_URL repo/org variable'
+        required: false
+        type: string
+        default: ''
+      release-version:
+        description: 'Tag being released; defaults to github.ref_name (tag-triggered callers)'
+        required: false
+        type: string
+        default: ''
+    outputs:
+      body:
+        description: 'Generated release-notes markdown'
+        value: ${{ jobs.notes.outputs.body }}
+  # Manual run for plumbing validation (runs against this repo's own history)
+  workflow_dispatch:
+
+jobs:
+  notes:
+    runs-on: ubuntu-latest
+    outputs:
+      body: ${{ steps.notes.outputs.body }}
+    steps:
+      # The caller's repository and full tag history
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # The canonical script, from this standards repo
+      - uses: actions/checkout@v4
+        with:
+          repository: tkforgeworks/.github
+          path: .tkforgeworks-standards
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - id: notes
+        run: |
+          BODY=$(node .tkforgeworks-standards/scripts/generate-release-notes.js)
+          echo "$BODY"
+          echo "body<<TKFW_NOTES_EOF" >> $GITHUB_OUTPUT
+          echo "$BODY" >> $GITHUB_OUTPUT
+          echo "TKFW_NOTES_EOF" >> $GITHUB_OUTPUT
+        env:
+          JIRA_BASE_URL: ${{ inputs.jira-base-url || vars.JIRA_BASE_URL }}
+          RELEASE_VERSION: ${{ inputs.release-version || github.ref_name }}
+          TICKET_PREFIX: ${{ inputs.ticket-prefix }}
