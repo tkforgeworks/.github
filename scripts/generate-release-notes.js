@@ -9,8 +9,7 @@
  * "Changes"; Jira ticket keys are linked when configured.
  *
  * A stable release (no prerelease suffix in the tag) diffs against the
- * previous STABLE tag, so final-release notes span all release candidates,
- * and lists the RC tag range the release rolls up.
+ * previous STABLE tag, so final-release notes span all release candidates.
  *
  * Works for both tag-triggered releases (the current tag already exists)
  * and push-triggered releases (the tag is created after notes generation —
@@ -65,11 +64,6 @@ function findPreviousTag(current, tags) {
   return candidates.length > 0 ? candidates[0] : null
 }
 
-function findIncludedRcTags(current, tags) {
-  if (!current || isPrerelease(current)) return []
-  return tags.filter((t) => t.startsWith(`${current}-rc.`))
-}
-
 function getCommits(since) {
   const range = since ? `${since}..HEAD` : 'HEAD'
   const raw = git(`log ${range} --no-merges --format="%h|||%s"`)
@@ -120,15 +114,7 @@ function run() {
     }
   }
 
-  const rcTags = findIncludedRcTags(current, tags)
   const lines = ["## What's Changed", '']
-  if (rcTags.length === 1) {
-    lines.push(`This release includes changes from ${rcTags[0]}.`)
-    lines.push('')
-  } else if (rcTags.length > 1) {
-    lines.push(`This release includes changes from ${rcTags[rcTags.length - 1]} through ${rcTags[0]}.`)
-    lines.push('')
-  }
   if (changes.length > 0) {
     lines.push('### Changes')
     for (const c of changes) lines.push(`- ${linkTickets(c.message)}`)
