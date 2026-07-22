@@ -9,7 +9,12 @@
  * "Changes"; Jira ticket keys are linked when configured.
  *
  * A stable release (no prerelease suffix in the tag) diffs against the
- * previous STABLE tag, so final-release notes span all release candidates.
+ * previous STABLE tag, so final-release notes span all release candidates,
+ * and lists the RC tag range the release rolls up.
+ *
+ * Works for both tag-triggered releases (the current tag already exists)
+ * and push-triggered releases (the tag is created after notes generation —
+ * pass RELEASE_VERSION explicitly).
  *
  * Env:
  *  RELEASE_VERSION  tag being released (e.g. v1.1.0-rc.4); defaults to
@@ -36,22 +41,33 @@ function isPrerelease(tag) {
   return tag.includes('-')
 }
 
-function findPreviousTag() {
+function getAllTags() {
   try {
-    const tags = git('tag --sort=-v:refname').split('\n').filter(Boolean)
-    const current = process.env.RELEASE_VERSION || process.env.GITHUB_REF_NAME || tags[0]
-    const idx = tags.indexOf(current)
-    if (idx < 0) return tags.length > 0 ? tags[0] : null
-
-    const candidates = tags.slice(idx + 1)
-    if (!isPrerelease(current)) {
-      const prevStable = candidates.find((t) => !isPrerelease(t))
-      if (prevStable) return prevStable
-    }
-    return candidates.length > 0 ? candidates[0] : null
+    return git('tag --sort=-v:refname').split('\n').filter(Boolean)
   } catch {
-    return null
+    return []
   }
+}
+
+function currentVersion(tags) {
+  return process.env.RELEASE_VERSION || process.env.GITHUB_REF_NAME || tags[0] || ''
+}
+
+function findPreviousTag(current, tags) {
+  const idx = tags.indexOf(current)
+  // Push-triggered callers run before the release tag is created, so the
+  // current version is absent from the list and every existing tag is older.
+  const candidates = idx >= 0 ? tags.slice(idx + 1) : tags
+  if (current && !isPrerelease(current)) {
+    const prevStable = candidates.find((t) => !isPrerelease(t))
+    if (prevStable) return prevStable
+  }
+  return candidates.length > 0 ? candidates[0] : null
+}
+
+function findIncludedRcTags(current, tags) {
+  if (!current || isPrerelease(current)) return []
+  return tags.filter((t) => t.startsWith(`${current}-rc.`))
 }
 
 function getCommits(since) {
@@ -83,7 +99,9 @@ function linkTickets(msg) {
 }
 
 function run() {
-  const prevTag = findPreviousTag()
+  const tags = getAllTags()
+  const current = currentVersion(tags)
+  const prevTag = findPreviousTag(current, tags)
   const commits = getCommits(prevTag)
   const filtered = commits.filter((c) => !isReleaseBump(c.message))
 
@@ -102,7 +120,12 @@ function run() {
     }
   }
 
+  const rcTags = findIncludedRcTags(current, tags)
   const lines = ["## What's Changed", '']
+  if (rcTags.length > 0) {
+    lines.push(`This release includes changes from ${rcTags[rcTags.length - 1]} through ${rcTags[0]}.`)
+    lines.push('')
+  }
   if (changes.length > 0) {
     lines.push('### Changes')
     for (const c of changes) lines.push(`- ${linkTickets(c.message)}`)
