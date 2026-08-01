@@ -20,7 +20,7 @@ jobs:
   build:
     needs: release-notes
     # ...
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v3
         with:
           body: ${{ needs.release-notes.outputs.body }}
 ```
@@ -40,3 +40,7 @@ Adopters: `anvil` (source of truth), `claude-observability-gui` (first mirror).
 See [`docs/ci-standards.md`](docs/ci-standards.md) for the standard: two composable reusable workflows, `ci-typescript.yml` (generic lint/typecheck/test/audit/build for any TS/Node repo) and `ci-electron.yml` (layers electronegativity, native-module rebuild check, and an `electron-builder --dir` packaging dry-run on top). Requires a fixed `lint`/`typecheck`/`test`/`build` npm script contract in the caller. `lint` and the Electron-specific checks are intentionally non-blocking for now — see the doc for why and the per-repo adoption checklist.
 
 Not yet adopted by any repo — `anvil` and `claude-observability-gui` are the intended first adopters (see the doc's adoption checklist for what each needs first).
+
+### Node 20 Actions runtime deprecation
+
+See [`docs/node20-action-deprecation.md`](docs/node20-action-deprecation.md) — GitHub is removing the Node 20 Actions runtime; `actions/checkout`/`actions/setup-node` need v5+ and `softprops/action-gh-release` needs v3 to stay on Node 24. Fixed here in `release-notes.yml`, `ci-typescript.yml`, and `ci-electron.yml` (bumped to the latest stable majors). anvil's and claude-observability-gui's own `ci.yml`/`release.yml` pin these actions independently and still need the same bump directly in each repo — see the doc for the exact per-repo version list.

@@ -132,11 +132,40 @@ merge-gate check set.
 intended first adopters; see `docs/ci-standards.md`'s Agent Adoption Runbook
 before doing that work in either repo.
 
+### Node 20 Actions runtime deprecation fix
+
+- `docs/node20-action-deprecation.md` — source: Jira
+  [CGUI-55](https://tkforgeworks.atlassian.net/browse/CGUI-55). GitHub is
+  removing the Node 20 Actions runtime; confirmed via each action's own
+  `action.yml` (not assumed) that `actions/checkout`/`actions/setup-node`
+  need v5+ and `softprops/action-gh-release` needs v3 for Node 24. Bumped to
+  latest stable majors (v7 / v7 / v3) in this repo's `release-notes.yml`,
+  `ci-typescript.yml`, `ci-electron.yml`, and the README's
+  `action-gh-release` example — reviewed each major's release notes between
+  minimum-Node24 and latest to confirm no breaking change applies to how
+  they're used here.
+- **anvil and claude-observability-gui's own `ci.yml`/`release.yml` are NOT
+  fixed by this** — they pin these actions independently, not through this
+  repo's reusable workflows for their build/release steps. The doc records
+  the exact per-repo version bumps still needed there (including
+  `actions/upload-artifact`→v7 and `actions/download-artifact`→v8, both
+  anvil-only), so a future session doesn't have to re-derive them from
+  CGUI-55's audit again.
+
 ## Update log
 
 Newest first. One entry per notable change — what changed and why, not a
 line-by-line diff (git history already has that).
 
+- **2026-08-01** — Fixed GitHub Actions Node 20 runtime deprecation
+  (Jira CGUI-55) in this repo's reusable workflows: bumped
+  `actions/checkout`, `actions/setup-node` (v4→v7), and the README's
+  `softprops/action-gh-release` example (v2→v3) across `release-notes.yml`,
+  `ci-typescript.yml`, `ci-electron.yml`. Verified via each action's actual
+  `action.yml` `runs:` field which major introduced `node24`, rather than
+  guessing from version numbers. Also audited (but did not fix — separate
+  repos) anvil's and claude-observability-gui's own `ci.yml`/`release.yml`,
+  recording the exact remaining bumps in `docs/node20-action-deprecation.md`.
 - **2026-08-01** — Split CI into `quick` (push, `ci-typescript.yml` only) and
   `full` (PR-to-default, `ci-electron.yml`) jobs per repo, per user request,
   eliminating the double-run-on-every-commit waste of the single-job design.
