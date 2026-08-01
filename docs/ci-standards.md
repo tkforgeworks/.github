@@ -33,6 +33,35 @@ jobs:
     uses: tkforgeworks/.github/.github/workflows/ci-typescript.yml@main
 ```
 
+## Trigger & concurrency envelope (canonical, required in the caller)
+
+A `workflow_call` reusable workflow can't declare its own top-level `on:` —
+the caller's wrapper file owns the trigger and concurrency config. That part
+was previously left as "whatever the repo already had," which baked in real
+drift rather than fixing it: anvil's `ci.yml` fires on every push to a topic
+branch *and* on PR events (with a concurrency group deduping the two), while
+claude-observability-gui's only fired on pushes to `main` itself — which,
+since the branch-protection ruleset blocks direct pushes to the default
+branch, effectively meant no CI feedback existed until a PR was opened. That
+wasn't a deliberate choice on either side, just independent drift between
+when each repo's `ci.yml` was written.
+
+anvil's version is the better pattern — earlier feedback, no loss of
+dedup safety — so it's the canonical envelope for every adopter, substituting
+the repo's actual default branch name:
+
+```yaml
+on:
+  push:
+    branches-ignore: [<default-branch>]
+  pull_request:
+    branches: [<default-branch>]
+
+concurrency:
+  group: ci-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.number) || github.ref }}
+  cancel-in-progress: true
+```
+
 ## Script-name contract (required in the caller's `package.json`)
 
 | Script | Purpose |
@@ -122,11 +151,13 @@ steps below assume that context.
        with:
          build-env-json: '{"VITE_TELEMETRY_ENABLED":"true"}'
    ```
-   (`runs-on` defaults to `windows-latest` in `ci-electron.yml`, matching
-   anvil's current runner — no override needed. The `build-env-json` input
-   replaces anvil's current inline `env:` on its build step; carrying that
-   value forward is required, not optional — confirm with the repo owner if
-   its purpose is unclear before dropping it.)
+   (The `on:`/`concurrency:` block here is unchanged from anvil's current
+   `ci.yml` — it already matches the canonical envelope above, confirmed,
+   not just carried over by omission. `runs-on` defaults to `windows-latest`
+   in `ci-electron.yml`, matching anvil's current runner — no override
+   needed. The `build-env-json` input replaces anvil's current inline `env:`
+   on its build step; carrying that value forward is required, not optional
+   — confirm with the repo owner if its purpose is unclear before dropping it.)
 6. Push, open a PR, and read the actual Actions run to find the real check
    names (something like `ci / typescript / validate` and
    `ci / electron-checks` — **do not guess these in advance**, they depend on
@@ -163,20 +194,32 @@ steps below assume that context.
 
    on:
      push:
-       branches: [main]
+       branches-ignore: [main]
      pull_request:
        branches: [main]
+
+   concurrency:
+     group: ci-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.number) || github.ref }}
+     cancel-in-progress: true
 
    jobs:
      ci:
        uses: tkforgeworks/.github/.github/workflows/ci-electron.yml@main
    ```
-   Note this **changes the runner from `ubuntu-latest` to `windows-latest`**
-   (the `ci-electron.yml` default) deliberately — this repo ships an
-   NSIS-only installer with a native module (`better-sqlite3`), so its native
-   rebuild and packaging checks should run against the ABI/OS it actually
-   ships on, not Linux. This is an intentional fix, not an oversight to
-   preserve.
+   Two deliberate changes versus this repo's current `ci.yml`, both fixes,
+   not oversights:
+   - **`on:`/`concurrency:` block replaced**, not carried over. The current
+     `push: branches: [main]` only fires on pushes to `main` itself — which
+     the branch-protection ruleset already blocks except via PR-merge
+     commits — so there's no CI feedback on a topic branch until a PR is
+     opened. `branches-ignore: [main]` (matching anvil's canonical envelope
+     above) fixes that, with the concurrency group deduping push-triggered
+     and PR-triggered runs on the same commit.
+   - **Runner changes from `ubuntu-latest` to `windows-latest`** (the
+     `ci-electron.yml` default) — this repo ships an NSIS-only installer
+     with a native module (`better-sqlite3`), so its native rebuild and
+     packaging checks should run against the ABI/OS it actually ships on,
+     not Linux.
 8. Push, open a PR, read the actual Actions run for the real check names
    (e.g. `ci / typescript / validate`, `ci / electron-checks` — again, don't
    guess), and PATCH this repo's ruleset (current required context:

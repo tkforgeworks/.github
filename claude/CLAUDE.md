@@ -108,6 +108,13 @@ ESLint/Prettier/electronegativity configured at all; anvil already used
 `typecheck` while claude-observability-gui used `compile` for the same
 purpose (hence the contract requiring a rename there).
 
+**Trigger/concurrency envelope is now part of the standard too**, not just
+the `jobs:` block — see `docs/ci-standards.md`'s "Trigger & concurrency
+envelope" section. anvil's `push: branches-ignore` + PR trigger + concurrency
+dedup is canonical; claude-observability-gui's plain `push: branches: [main]`
+(no concurrency block) was unintentional drift, not a deliberate choice —
+its runbook step now replaces that block instead of preserving it.
+
 **Not yet adopted anywhere.** anvil and claude-observability-gui are the
 intended first adopters; see `docs/ci-standards.md`'s Agent Adoption Runbook
 before doing that work in either repo.
@@ -117,6 +124,14 @@ before doing that work in either repo.
 Newest first. One entry per notable change — what changed and why, not a
 line-by-line diff (git history already has that).
 
+- **2026-08-01** — User caught that the runbook silently preserved each
+  repo's existing `on:`/`concurrency:` block instead of reconciling them —
+  anvil fires CI on every topic-branch push (fast feedback pre-PR) while
+  claude-observability-gui only fired on pushes to `main` itself (no
+  feedback until a PR exists, since the ruleset blocks direct pushes
+  anyway). Added a canonical "Trigger & concurrency envelope" section
+  (anvil's pattern) and fixed claude-observability-gui's runbook step to
+  replace its block rather than carry the weaker one forward.
 - **2026-08-01** — Added an "Agent Adoption Runbook" to `docs/ci-standards.md`
   (step-by-step, per repo, written for a fresh agent session) and fixed a
   gap found while drafting it: neither reusable workflow had a way to pass
