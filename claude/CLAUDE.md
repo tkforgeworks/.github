@@ -60,11 +60,32 @@ is commit-subject discipline: subjects become changelog lines.
 (push-to-master releases, pattern originated here — passes `release-version`
 explicitly).
 
+### Branch protection (repository ruleset)
+
+- `docs/branch-protection-ruleset.md` — standard for locking down a repo's
+  default branch via a **repository ruleset** (not classic branch
+  protection): no force-push/deletion, PRs required with a passing named CI
+  check, zero bypass actors (not even admins). Includes the replication
+  `gh api` POST command, per-repo adaptation (CI job name must match exactly,
+  how to require multiple checks), a PATCH flow for updating an existing
+  mirrored ruleset, prerequisites (CI must exist and have reported on a PR
+  first, or the required check blocks merges forever), and a plan-requirement
+  note (private repos need GitHub Team/Enterprise for rulesets).
+
+Source of truth: `tkforgeworks/anvil` (ruleset id 16447467, "master").
+**Adopters:** `claude-observability-gui` (ruleset id 20203739, "main",
+created 2026-08-01).
+
 ## Update log
 
 Newest first. One entry per notable change — what changed and why, not a
 line-by-line diff (git history already has that).
 
+- **2026-08-01** — Added `docs/branch-protection-ruleset.md`: repository
+  ruleset standard mirrored from `anvil`, folded in review gaps (update/PATCH
+  flow, multiple required checks, CI-must-exist-first prerequisite, private
+  repo plan requirement, ref-list trimming note) before committing. Linked
+  from root `README.md`. On branch `claude/init-memory-reference`, pending PR.
 - **2026-08-01** — Initialized this `claude/CLAUDE.md` reference file. No
   code changes; repo already contained the release-notes standard
   (script + reusable workflow) from prior sessions.

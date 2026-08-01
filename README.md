@@ -28,3 +28,9 @@ jobs:
 Set a `JIRA_BASE_URL` repo (or org) variable, e.g. `https://tkforgeworks.atlassian.net/browse`. Commit-subject discipline is the contract: subjects become changelog lines, and `Fix ...` prefixes drive the Bug Fixes section.
 
 Adopters: `claude-observability-gui` (tag-push releases), pattern originated in `anvil` (push-to-master releases — pass `release-version` explicitly there).
+
+### Branch protection (repository ruleset)
+
+See [`docs/branch-protection-ruleset.md`](docs/branch-protection-ruleset.md) for the standard: a repository ruleset (not classic branch protection) that blocks force-pushes and deletion of the default branch, requires PRs with a passing named CI check, and disallows all bypass — including admins. Includes the replication `gh api` command, per-repo adaptation notes (CI job name, multiple required checks), an update/PATCH flow for existing rulesets, and verification steps.
+
+Adopters: `anvil` (source of truth), `claude-observability-gui` (first mirror).
