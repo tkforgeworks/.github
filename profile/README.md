@@ -1,8 +1,8 @@
 <div align="center">
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="assets/wordmark-dark.svg">
-  <img src="assets/wordmark-light.svg" alt="TK ForgeWorks" width="320">
+  <source media="(prefers-color-scheme: dark)" srcset="assets/tkforgeworks-lockup-dark.svg">
+  <img src="assets/tkforgeworks-lockup-light.svg" alt="TK ForgeWorks" width="280">
 </picture>
 
 <br>
