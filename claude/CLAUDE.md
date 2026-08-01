@@ -87,12 +87,20 @@ created 2026-08-01).
   (`npm run rebuild --if-present`, genuinely optional), electronegativity
   (Electron security misconfig lint), and an `electron-builder --dir`
   packaging dry-run. All three Electron-specific checks are non-blocking.
+  Both workflows also take a `build-env-json` input (JSON object, default
+  `'{}'`) merged into the build step's `env` — added specifically because
+  anvil's current build passes `VITE_TELEMETRY_ENABLED: 'true'` and the
+  first workflow draft had no passthrough mechanism for that.
 - `docs/ci-standards.md` — the standard doc: full rationale for what's
-  blocking vs. not, and a **per-repo adoption checklist** for anvil and
-  claude-observability-gui (script renames needed, missing lint config,
-  runner OS fix for claude-observability-gui, and the reminder that adopting
-  changes CI check names — the branch-protection ruleset's required context
-  needs a PATCH update when a repo switches over, or PRs block forever).
+  blocking vs. not, plus an **"Agent Adoption Runbook"** section with
+  ordered, concrete steps per repo (anvil, claude-observability-gui) —
+  written to be followed by a fresh agent session with no memory of this
+  design discussion, running inside the target repo itself. Covers exact
+  ESLint/Prettier setup, script renames, the full replacement `ci.yml`
+  content per repo (including `build-env-json` for anvil), the runner-OS fix
+  for claude-observability-gui, and the reminder that adopting changes CI
+  check names — the branch-protection ruleset's required context needs a
+  PATCH update read from the actual Actions run, never guessed in advance.
 
 **Designed against real state, not abstractly:** reviewed both repos' actual
 `ci.yml` and `package.json` on 2026-08-01 before drafting — neither had
@@ -101,7 +109,7 @@ ESLint/Prettier/electronegativity configured at all; anvil already used
 purpose (hence the contract requiring a rename there).
 
 **Not yet adopted anywhere.** anvil and claude-observability-gui are the
-intended first adopters; see `docs/ci-standards.md`'s adoption checklist
+intended first adopters; see `docs/ci-standards.md`'s Agent Adoption Runbook
 before doing that work in either repo.
 
 ## Update log
@@ -109,6 +117,12 @@ before doing that work in either repo.
 Newest first. One entry per notable change — what changed and why, not a
 line-by-line diff (git history already has that).
 
+- **2026-08-01** — Added an "Agent Adoption Runbook" to `docs/ci-standards.md`
+  (step-by-step, per repo, written for a fresh agent session) and fixed a
+  gap found while drafting it: neither reusable workflow had a way to pass
+  per-repo build env vars, which anvil's build actually needs
+  (`VITE_TELEMETRY_ENABLED`). Added a `build-env-json` input to both
+  `ci-typescript.yml` and `ci-electron.yml` to carry it through.
 - **2026-08-01** — Added `ci-typescript.yml` / `ci-electron.yml` reusable
   workflows + `docs/ci-standards.md`. Pulled anvil's and
   claude-observability-gui's actual `ci.yml`/`package.json` via `gh api`

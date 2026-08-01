@@ -32,6 +32,11 @@ on:
         required: false
         type: string
         default: '22'
+      build-env-json:
+        description: 'JSON object of extra env vars for the build step, e.g. ''{"VITE_TELEMETRY_ENABLED":"true"}'''
+        required: false
+        type: string
+        default: '{}'
 
 jobs:
   validate:
@@ -61,3 +66,4 @@ jobs:
 
       - name: Build
         run: npm run build
+        env: ${{ fromJSON(inputs.build-env-json) }}

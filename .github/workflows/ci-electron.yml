@@ -28,6 +28,11 @@ on:
         required: false
         type: string
         default: '22'
+      build-env-json:
+        description: 'JSON object of extra env vars for build steps, e.g. ''{"VITE_TELEMETRY_ENABLED":"true"}'''
+        required: false
+        type: string
+        default: '{}'
 
 jobs:
   typescript:
@@ -35,6 +40,7 @@ jobs:
     with:
       runs-on: ${{ inputs.runs-on }}
       node-version: ${{ inputs.node-version }}
+      build-env-json: ${{ inputs.build-env-json }}
 
   electron-checks:
     needs: typescript
@@ -59,4 +65,5 @@ jobs:
 
       - name: Packaging dry-run (electron-builder --dir)
         run: npm run build && npx electron-builder --dir
+        env: ${{ fromJSON(inputs.build-env-json) }}
         continue-on-error: true
