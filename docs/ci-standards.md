@@ -33,6 +33,11 @@ jobs:
     uses: tkforgeworks/.github/.github/workflows/ci-typescript.yml@main
 ```
 
+(A plain TS/Node repo doesn't need the quick/full split described below —
+there's no heavier second tier to defer to PR time, `ci-typescript.yml` is
+the whole check set either way. The split only pays off for Electron
+adopters, where `ci-electron.yml` is a genuinely more expensive superset.)
+
 ## Trigger & concurrency envelope (canonical, required in the caller)
 
 A `workflow_call` reusable workflow can't declare its own top-level `on:` —
@@ -48,7 +53,25 @@ when each repo's `ci.yml` was written.
 
 anvil's version is the better pattern — earlier feedback, no loss of
 dedup safety — so it's the canonical envelope for every adopter, substituting
-the repo's actual default branch name:
+the repo's actual default branch name.
+
+**Split into a light job and a full job**, rather than running the same full
+set of checks on both events. A push to a topic branch and the PR-sync event
+for that same commit both used to trigger the identical full job — for
+Electron adopters that means electronegativity, the native rebuild check,
+and the packaging dry-run all ran twice for one commit, on `windows-latest`
+(2x the billed-minute rate of Linux runners), for zero extra signal. The
+composable workflow split already made for a different reason (generic vs.
+Electron-specific) maps directly onto this: `push` events call
+`ci-typescript.yml` only (fast lint/typecheck/test/audit/build feedback
+while iterating pre-PR); `pull_request` events targeting the default branch
+call the full `ci-electron.yml` (adds electronegativity/rebuild/packaging —
+checks that only matter at merge-gate time, not on every WIP commit).
+Neither job needs an explicit `runs-on` override for this split to work:
+`ci-typescript.yml` already defaults to `ubuntu-latest` (cheaper, and the
+light job never touches native rebuild/packaging so there's no ABI reason to
+pay for Windows there) and `ci-electron.yml` already defaults to
+`windows-latest`.
 
 ```yaml
 on:
@@ -60,7 +83,20 @@ on:
 concurrency:
   group: ci-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.number) || github.ref }}
   cancel-in-progress: true
+
+jobs:
+  quick:
+    if: github.event_name == 'push'
+    uses: tkforgeworks/.github/.github/workflows/ci-typescript.yml@main
+
+  full:
+    if: github.event_name == 'pull_request'
+    uses: tkforgeworks/.github/.github/workflows/ci-electron.yml@main
 ```
+
+The branch-protection ruleset only needs `full`'s checks as required
+context — `quick` never runs on a `pull_request` event (its `if:` excludes
+it), so it can't satisfy or block a PR either way.
 
 ## Script-name contract (required in the caller's `package.json`)
 
@@ -146,24 +182,36 @@ steps below assume that context.
      cancel-in-progress: true
 
    jobs:
-     ci:
+     quick:
+       if: github.event_name == 'push'
+       uses: tkforgeworks/.github/.github/workflows/ci-typescript.yml@main
+       with:
+         build-env-json: '{"VITE_TELEMETRY_ENABLED":"true"}'
+
+     full:
+       if: github.event_name == 'pull_request'
        uses: tkforgeworks/.github/.github/workflows/ci-electron.yml@main
        with:
          build-env-json: '{"VITE_TELEMETRY_ENABLED":"true"}'
    ```
    (The `on:`/`concurrency:` block here is unchanged from anvil's current
    `ci.yml` — it already matches the canonical envelope above, confirmed,
-   not just carried over by omission. `runs-on` defaults to `windows-latest`
-   in `ci-electron.yml`, matching anvil's current runner — no override
-   needed. The `build-env-json` input replaces anvil's current inline `env:`
-   on its build step; carrying that value forward is required, not optional
-   — confirm with the repo owner if its purpose is unclear before dropping it.)
-6. Push, open a PR, and read the actual Actions run to find the real check
-   names (something like `ci / typescript / validate` and
-   `ci / electron-checks` — **do not guess these in advance**, they depend on
-   the job id chosen above, here `ci`). Use those exact names to PATCH
-   anvil's ruleset (`docs/branch-protection-ruleset.md`), replacing the
-   current required context `validate`.
+   not just carried over by omission. The `jobs:` section is new: `quick`
+   runs on every topic-branch push — lint/typecheck/test/audit/build only,
+   on `ci-typescript.yml`'s default `ubuntu-latest` — while `full` only runs
+   on PRs targeting `master` and adds electronegativity/rebuild/packaging on
+   `ci-electron.yml`'s default `windows-latest`. Neither job needs an
+   explicit `runs-on` override. `build-env-json` goes on both — both run
+   `npm run build`, and both need `VITE_TELEMETRY_ENABLED` for it to behave
+   the same as it does today.)
+6. Push, open a PR, and read the actual Actions run to find `full`'s real
+   check names (something like `full / typescript / validate` and
+   `full / electron-checks` — **do not guess these in advance**, they depend
+   on the job id chosen above). Use those exact names to PATCH anvil's
+   ruleset (`docs/branch-protection-ruleset.md`), replacing the current
+   required context `validate`. `quick`'s checks are not required context —
+   it never runs on a `pull_request` event, so it can't report on a PR
+   either way.
 7. If `npm audit --omit=dev --audit-level=high` fails on the PR (it's
    blocking), resolve the advisory or explicitly flag it to the repo owner —
    don't silently loosen the audit level to make CI pass.
@@ -203,33 +251,49 @@ steps below assume that context.
      cancel-in-progress: true
 
    jobs:
-     ci:
+     quick:
+       if: github.event_name == 'push'
+       uses: tkforgeworks/.github/.github/workflows/ci-typescript.yml@main
+
+     full:
+       if: github.event_name == 'pull_request'
        uses: tkforgeworks/.github/.github/workflows/ci-electron.yml@main
    ```
-   Two deliberate changes versus this repo's current `ci.yml`, both fixes,
-   not oversights:
+   Deliberate changes versus this repo's current `ci.yml`, all fixes, not
+   oversights:
    - **`on:`/`concurrency:` block replaced**, not carried over. The current
      `push: branches: [main]` only fires on pushes to `main` itself — which
      the branch-protection ruleset already blocks except via PR-merge
      commits — so there's no CI feedback on a topic branch until a PR is
      opened. `branches-ignore: [main]` (matching anvil's canonical envelope
-     above) fixes that, with the concurrency group deduping push-triggered
-     and PR-triggered runs on the same commit.
-   - **Runner changes from `ubuntu-latest` to `windows-latest`** (the
-     `ci-electron.yml` default) — this repo ships an NSIS-only installer
-     with a native module (`better-sqlite3`), so its native rebuild and
-     packaging checks should run against the ABI/OS it actually ships on,
-     not Linux.
-8. Push, open a PR, read the actual Actions run for the real check names
-   (e.g. `ci / typescript / validate`, `ci / electron-checks` — again, don't
-   guess), and PATCH this repo's ruleset (current required context:
-   `typecheck-and-test`) to match.
+     above) fixes that.
+   - **`jobs:` split into `quick` (push) and `full` (PR)** rather than one
+     job for both. `quick` stays on `ci-typescript.yml`'s default
+     `ubuntu-latest` — no change from today for that path.
+   - **`full` runs on `windows-latest`** (the `ci-electron.yml` default),
+     which *is* a change from this repo's current single `ubuntu-latest` job
+     — this repo ships an NSIS-only installer with a native module
+     (`better-sqlite3`), so the checks that actually matter for merge
+     (native rebuild, packaging dry-run) should run against the ABI/OS it
+     ships on, not Linux. `quick` never touched those checks anyway, so it
+     staying on Linux costs nothing.
+8. Push, open a PR, read the actual Actions run for `full`'s real check
+   names (e.g. `full / typescript / validate`, `full / electron-checks` —
+   again, don't guess), and PATCH this repo's ruleset (current required
+   context: `typecheck-and-test`) to match. `quick`'s checks aren't required
+   context — it doesn't run on `pull_request` events.
 9. Confirm `lint` shows as a warning if it finds issues, while
-   `typecheck`/`test`/`audit`/`build` genuinely gate merge.
+   `typecheck`/`test`/`audit`/`build` genuinely gate merge — on both `quick`
+   (push) and `full` (PR), since both call `ci-typescript.yml`.
 
 ## Verification
 
 Once a repo adopts, confirm the Actions run shows: `lint` step flagged
 yellow/warning (not red/failing) if lint errors exist since it's
 `continue-on-error`; `typecheck`/`test`/`audit`/`build` genuinely fail the
-job (and therefore the required check) if broken.
+job (and therefore the required check) if broken. Also confirm the
+push/PR split actually behaves as intended: a push to a topic branch runs
+only `quick` (no electronegativity/rebuild/packaging steps in the run at
+all — they shouldn't even appear), and opening or updating a PR against the
+default branch runs only `full`. If both jobs show up on the same event,
+the `if:` conditions are wrong.

@@ -115,6 +115,19 @@ dedup is canonical; claude-observability-gui's plain `push: branches: [main]`
 (no concurrency block) was unintentional drift, not a deliberate choice —
 its runbook step now replaces that block instead of preserving it.
 
+**Push and PR now run different jobs — `quick` vs `full`.** Both used to run
+the identical full check set (a topic-branch push and its PR-sync event both
+triggered the same job for the same commit), which meant electronegativity/
+native-rebuild/packaging-dry-run ran twice per commit on `windows-latest`
+(2x-billed runner). Now: `quick` (`if: github.event_name == 'push'`) calls
+`ci-typescript.yml` only; `full` (`if: github.event_name == 'pull_request'`)
+calls `ci-electron.yml`. Neither needs a `runs-on` override — the reusable
+workflows' own defaults (`ubuntu-latest` / `windows-latest`) already match.
+The branch-protection ruleset only needs `full`'s check names as required
+context. This was the user's idea, prompted by noticing the earlier
+single-job design didn't distinguish light pre-PR feedback from the full
+merge-gate check set.
+
 **Not yet adopted anywhere.** anvil and claude-observability-gui are the
 intended first adopters; see `docs/ci-standards.md`'s Agent Adoption Runbook
 before doing that work in either repo.
@@ -124,6 +137,12 @@ before doing that work in either repo.
 Newest first. One entry per notable change — what changed and why, not a
 line-by-line diff (git history already has that).
 
+- **2026-08-01** — Split CI into `quick` (push, `ci-typescript.yml` only) and
+  `full` (PR-to-default, `ci-electron.yml`) jobs per repo, per user request,
+  eliminating the double-run-on-every-commit waste of the single-job design.
+  Updated the canonical trigger envelope, both repos' runbook `ci.yml`
+  blocks, and the ruleset-context guidance (only `full`'s checks are
+  required context) accordingly.
 - **2026-08-01** — User caught that the runbook silently preserved each
   repo's existing `on:`/`concurrency:` block instead of reconciling them —
   anvil fires CI on every topic-branch push (fast feedback pre-PR) while
