@@ -34,3 +34,9 @@ Adopters: `claude-observability-gui` (tag-push releases), pattern originated in 
 See [`docs/branch-protection-ruleset.md`](docs/branch-protection-ruleset.md) for the standard: a repository ruleset (not classic branch protection) that blocks force-pushes and deletion of the default branch, requires PRs with a passing named CI check, and disallows all bypass — including admins. Includes the replication `gh api` command, per-repo adaptation notes (CI job name, multiple required checks), an update/PATCH flow for existing rulesets, and verification steps.
 
 Adopters: `anvil` (source of truth), `claude-observability-gui` (first mirror).
+
+### CI / validation (TypeScript & Electron)
+
+See [`docs/ci-standards.md`](docs/ci-standards.md) for the standard: two composable reusable workflows, `ci-typescript.yml` (generic lint/typecheck/test/audit/build for any TS/Node repo) and `ci-electron.yml` (layers electronegativity, native-module rebuild check, and an `electron-builder --dir` packaging dry-run on top). Requires a fixed `lint`/`typecheck`/`test`/`build` npm script contract in the caller. `lint` and the Electron-specific checks are intentionally non-blocking for now — see the doc for why and the per-repo adoption checklist.
+
+Not yet adopted by any repo — `anvil` and `claude-observability-gui` are the intended first adopters (see the doc's adoption checklist for what each needs first).

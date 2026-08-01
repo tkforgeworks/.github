@@ -1,0 +1,63 @@
+# TK ForgeWorks standard: generic TypeScript/Node CI validation.
+# Consume from any TS/Node repo's CI workflow:
+#
+#   jobs:
+#     validate:
+#       uses: tkforgeworks/.github/.github/workflows/ci-typescript.yml@main
+#
+# Script-name contract (required in the caller's package.json):
+#   lint       - eslint (or equivalent)
+#   typecheck  - tsc --noEmit (one or more project references)
+#   test       - test runner
+#   build      - production build
+#
+# typecheck/test/build are blocking, matching existing practice. `npm audit`
+# is blocking too (cheap, low false-positive). `lint` is non-blocking
+# (continue-on-error) until lint configs are actually in place across
+# adopting repos — see docs/ci-standards.md for the full rationale and the
+# per-repo adoption checklist.
+
+name: TypeScript CI
+
+on:
+  workflow_call:
+    inputs:
+      runs-on:
+        description: 'Runner label'
+        required: false
+        type: string
+        default: 'ubuntu-latest'
+      node-version:
+        description: 'Node.js version'
+        required: false
+        type: string
+        default: '22'
+
+jobs:
+  validate:
+    runs-on: ${{ inputs.runs-on }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: npm
+
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint
+        continue-on-error: true
+
+      - name: Type-check
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      - name: Audit dependencies
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Build
+        run: npm run build

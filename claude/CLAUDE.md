@@ -76,11 +76,52 @@ Source of truth: `tkforgeworks/anvil` (ruleset id 16447467, "master").
 **Adopters:** `claude-observability-gui` (ruleset id 20203739, "main",
 created 2026-08-01).
 
+### CI / validation (TypeScript & Electron)
+
+- `.github/workflows/ci-typescript.yml` — generic TS/Node CI: lint (non-
+  blocking), typecheck, test, audit, build. Requires the caller to have
+  `lint`/`typecheck`/`test`/`build` npm scripts (fixed contract, no per-repo
+  script-name inputs).
+- `.github/workflows/ci-electron.yml` — calls `ci-typescript.yml` as a nested
+  job, adds Electron-specific checks on top: native module rebuild
+  (`npm run rebuild --if-present`, genuinely optional), electronegativity
+  (Electron security misconfig lint), and an `electron-builder --dir`
+  packaging dry-run. All three Electron-specific checks are non-blocking.
+- `docs/ci-standards.md` — the standard doc: full rationale for what's
+  blocking vs. not, and a **per-repo adoption checklist** for anvil and
+  claude-observability-gui (script renames needed, missing lint config,
+  runner OS fix for claude-observability-gui, and the reminder that adopting
+  changes CI check names — the branch-protection ruleset's required context
+  needs a PATCH update when a repo switches over, or PRs block forever).
+
+**Designed against real state, not abstractly:** reviewed both repos' actual
+`ci.yml` and `package.json` on 2026-08-01 before drafting — neither had
+ESLint/Prettier/electronegativity configured at all; anvil already used
+`typecheck` while claude-observability-gui used `compile` for the same
+purpose (hence the contract requiring a rename there).
+
+**Not yet adopted anywhere.** anvil and claude-observability-gui are the
+intended first adopters; see `docs/ci-standards.md`'s adoption checklist
+before doing that work in either repo.
+
 ## Update log
 
 Newest first. One entry per notable change — what changed and why, not a
 line-by-line diff (git history already has that).
 
+- **2026-08-01** — Added `ci-typescript.yml` / `ci-electron.yml` reusable
+  workflows + `docs/ci-standards.md`. Pulled anvil's and
+  claude-observability-gui's actual `ci.yml`/`package.json` via `gh api`
+  first to design against reality: found neither had lint/electronegativity
+  configured, script names diverged (`typecheck` vs `compile`), and
+  claude-observability-gui's CI runs on `ubuntu-latest` despite shipping an
+  NSIS-only native-module app. User decided: (1) fixed script-name contract
+  (lint/typecheck/test/build) rather than per-repo inputs — a rename he'd
+  already meant to do; (2) all net-new checks (lint, electronegativity,
+  rebuild check, packaging dry-run) land non-blocking until he has time to
+  actually author lint configs. Also added a cross-reference note in
+  `docs/branch-protection-ruleset.md` about nested-workflow check naming.
+  On branch `claude/init-memory-reference`, pending PR.
 - **2026-08-01** — Added `docs/branch-protection-ruleset.md`: repository
   ruleset standard mirrored from `anvil`, folded in review gaps (update/PATCH
   flow, multiple required checks, CI-must-exist-first prerequisite, private

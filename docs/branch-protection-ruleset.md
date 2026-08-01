@@ -42,6 +42,8 @@ A wrong context blocks every PR forever (the required check never reports). Veri
 
 Also verify the CI workflow actually runs on PRs targeting the default branch (`on.pull_request.branches` must include it), or the required check never fires.
 
+**Nested reusable workflows change the check name.** Adopting a nested reusable workflow (see `docs/ci-standards.md` — `ci-electron.yml` calls `ci-typescript.yml` as a sub-job) produces check names like `ci / typescript / validate` rather than a single flat job name. Update `required_status_checks[].context` to match via the PATCH flow below whenever a repo switches its CI to one of these standards, or the ruleset waits forever on a context that no longer reports.
+
 **Multiple required checks:** the examples above assume one CI job gates merge. If a repo has separate jobs that should all be required (e.g. `lint`, `test`, `build` as independent jobs rather than steps in one job), add one entry per job to the `required_status_checks` array:
 
 ```json
