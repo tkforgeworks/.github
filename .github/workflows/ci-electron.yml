@@ -1,0 +1,69 @@
+# TK ForgeWorks standard: Electron CI validation, layered on top of
+# ci-typescript.yml (same script contract: lint/typecheck/test/build) plus
+# Electron-specific checks. Consume from an Electron repo's CI workflow:
+#
+#   jobs:
+#     ci:
+#       uses: tkforgeworks/.github/.github/workflows/ci-electron.yml@main
+#
+# All Electron-specific checks below are non-blocking (continue-on-error)
+# for now — electronegativity and the packaging dry-run are net-new checks
+# neither current adopter has configured yet. See docs/ci-standards.md.
+#
+# Native module rebuild check runs via `npm run rebuild --if-present` —
+# genuinely optional, no-ops silently if the caller has no `rebuild` script.
+
+name: Electron CI
+
+on:
+  workflow_call:
+    inputs:
+      runs-on:
+        description: 'Runner label'
+        required: false
+        type: string
+        default: 'windows-latest'
+      node-version:
+        description: 'Node.js version'
+        required: false
+        type: string
+        default: '22'
+      build-env-json:
+        description: 'JSON object of extra env vars for build steps, e.g. ''{"VITE_TELEMETRY_ENABLED":"true"}'''
+        required: false
+        type: string
+        default: '{}'
+
+jobs:
+  typescript:
+    uses: tkforgeworks/.github/.github/workflows/ci-typescript.yml@main
+    with:
+      runs-on: ${{ inputs.runs-on }}
+      node-version: ${{ inputs.node-version }}
+      build-env-json: ${{ inputs.build-env-json }}
+
+  electron-checks:
+    needs: typescript
+    runs-on: ${{ inputs.runs-on }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: npm
+
+      - run: npm ci
+
+      - name: Native module rebuild check
+        run: npm run rebuild --if-present
+        continue-on-error: true
+
+      - name: Electron security lint (electronegativity)
+        run: npx -y @doyensec/electronegativity -i .
+        continue-on-error: true
+
+      - name: Packaging dry-run (electron-builder --dir)
+        run: npm run build && npx electron-builder --dir
+        env: ${{ fromJSON(inputs.build-env-json) }}
+        continue-on-error: true
