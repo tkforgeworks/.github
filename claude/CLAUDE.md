@@ -13,7 +13,8 @@ sync when shared items are added, changed, or adopted elsewhere.
 ## Repo layout
 
 - `README.md` — repo-facing docs, includes the "Shared Standards" catalog
-- `profile/README.md` — org profile page (GitHub renders this on the org homepage)
+- `profile/README.md` — org profile page (GitHub renders this on the org homepage);
+  `profile/assets/` holds the brand logo lockup SVGs it embeds
 - `.github/workflows/` — reusable workflows (`workflow_call`), consumed via
   `uses: tkforgeworks/.github/.github/workflows/<name>.yml@main`
 - `scripts/` — canonical scripts backing the reusable workflows
@@ -47,7 +48,7 @@ jobs:
   build:
     needs: release-notes
     # ...
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v3
         with:
           body: ${{ needs.release-notes.outputs.body }}
 ```
@@ -152,11 +153,49 @@ before doing that work in either repo.
   anvil-only), so a future session doesn't have to re-derive them from
   CGUI-55's audit again.
 
+### Org profile page (profile/README.md)
+
+- `profile/README.md` — the org's public GitHub landing page. Replaced a
+  4-line placeholder with real content sourced from `tkforgeworks/TKForgeWorks_website`'s
+  actual `content/pages/about.md`/`faq.md`/homepage hero copy (fetched via
+  `gh api` — the live site 403s on direct `WebFetch`), and the brand-voice
+  rules from the `tkforgeworks-design` skill. Voice: first-person,
+  sarcastic-but-warm, self-aware asides undercutting confident claims — see
+  the skill's README before writing any more copy for this page.
+- `profile/assets/tkforgeworks-lockup-{light,dark}.svg` — the real brand
+  logo (illustrated forge/anvil mark with "TK ForgeWorks" as vector paths,
+  not live text), copied from the design skill's `assets/logo/` directory.
+  Embedded via a `<picture>`/`prefers-color-scheme` switch (GitHub's
+  supported light/dark-logo pattern). **Note for next time:** the skill also
+  has thinner placeholder "wordmark" SVGs (`assets/wordmark-{light,dark}.svg`)
+  — those looked off-center when centered in a `<div align="center">`
+  because their text is left-aligned inside a wide viewBox with dead space
+  to the right. Use the `logo/` lockup files instead; don't re-reach for the
+  wordmark placeholders. Also: a shallow `find -maxdepth 2` from the skill
+  root misses `assets/logo/` (it's 3 levels deep) — go deeper next time
+  before concluding an asset doesn't exist.
+- The repo table only links **public** repos (`anvil`,
+  `claude-observability-gui`, `.github`) — checked the org's real repo
+  visibility via `gh api orgs/tkforgeworks/repos` first. `AetherGears_r1` is
+  private; it's mentioned in prose (matching how the real About page already
+  describes it publicly) without a dead repo link.
+- Deliberately skips typical GitHub-profile bling (stats widgets, visitor
+  counters, badge walls) — the brand voice is understated/editorial, not
+  flashy. Revisit only if the user actually wants that.
+
 ## Update log
 
 Newest first. One entry per notable change — what changed and why, not a
 line-by-line diff (git history already has that).
 
+- **2026-08-01** — Rebuilt `profile/README.md` from a 4-line placeholder into
+  a real org landing page: real voice/copy pulled from
+  `TKForgeWorks_website`'s actual content files (not invented), a repo table
+  scoped to what's actually public, and a light/dark brand logo. First pass
+  used the design skill's placeholder "wordmark" SVGs, which rendered
+  off-center (left-aligned text in a wide viewBox) — user caught it; fixed
+  by swapping in the real `assets/logo/` lockup files instead of patching
+  the placeholder. Merged via PR #4 (`profile/readme-refresh` → `main`).
 - **2026-08-01** — Fixed GitHub Actions Node 20 runtime deprecation
   (Jira CGUI-55) in this repo's reusable workflows: bumped
   `actions/checkout`, `actions/setup-node` (v4→v7), and the README's
@@ -198,12 +237,13 @@ line-by-line diff (git history already has that).
   rebuild check, packaging dry-run) land non-blocking until he has time to
   actually author lint configs. Also added a cross-reference note in
   `docs/branch-protection-ruleset.md` about nested-workflow check naming.
-  On branch `claude/init-memory-reference`, pending PR.
+  Merged via PR #3 (`claude/init-memory-reference` → `main`).
 - **2026-08-01** — Added `docs/branch-protection-ruleset.md`: repository
   ruleset standard mirrored from `anvil`, folded in review gaps (update/PATCH
   flow, multiple required checks, CI-must-exist-first prerequisite, private
   repo plan requirement, ref-list trimming note) before committing. Linked
-  from root `README.md`. On branch `claude/init-memory-reference`, pending PR.
+  from root `README.md`. Merged via PR #3 (`claude/init-memory-reference` →
+  `main`).
 - **2026-08-01** — Initialized this `claude/CLAUDE.md` reference file. No
   code changes; repo already contained the release-notes standard
   (script + reusable workflow) from prior sessions.
