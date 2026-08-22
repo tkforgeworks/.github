@@ -1,0 +1,4 @@
+# Template — CODEOWNERS is NOT inherited from the org .github repo; copy to
+# <repo>/.github/CODEOWNERS. With a single maintainer this mostly serves as
+# documentation and auto-review-request plumbing.
+* @tkm3d1a

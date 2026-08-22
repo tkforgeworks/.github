@@ -1,0 +1,13 @@
+# Template — copy to the repo root. Line-ending policy for a Windows + WSL +
+# Linux-CI workflow, promoted from the homelab repo. Deliberately scoped
+# rather than `* text=auto`: only the formats that break on the wrong ending.
+*.sh      text eol=lf
+*.yml     text eol=lf
+*.yaml    text eol=lf
+*.cfg     text eol=lf
+*.toml    text eol=lf
+*.j2      text eol=lf
+*.tpl     text eol=lf
+*.ps1     text eol=crlf
+*.cmd     text eol=crlf
+*.bat     text eol=crlf

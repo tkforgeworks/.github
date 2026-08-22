@@ -133,6 +133,59 @@ merge-gate check set.
 intended first adopters; see `docs/ci-standards.md`'s Agent Adoption Runbook
 before doing that work in either repo.
 
+### CI / validation (Python) — `ci-python.yml`
+
+- uv (`uv sync --locked --dev`) + ruff check/format (**blocking**) + pytest.
+- Inputs: `python-version` (defaults to caller's `.python-version`),
+  `postgres-image` + `postgres-user/password/db` + `database-url-driver`
+  (starts a container via `docker run` because a `services:` block can't be
+  conditional in a reusable workflow; exports `DATABASE_URL`), `test-command`,
+  `post-test-command` (alembic round-trip etc.), `env-json`.
+- Job name is `ci` — matches lazy-sleeper's existing required check, so its
+  ruleset needs no PATCH on migration.
+- **Adopters:** none yet. Intended: `lazy-sleeper` (LS-54).
+
+### CI / validation (Flutter) — `ci-flutter.yml` (STUB)
+
+- `subosito/flutter-action@v2` → `flutter pub get` → `dart format
+  --set-exit-if-changed` → `flutter analyze` → `flutter test`. No builds.
+- **Unvalidated** — no Flutter repo exists yet; written so `lazy-sleeper-app`'s
+  first story lands on it. Expect changes once `flutter create` runs.
+
+### Electron release pipeline — `release-electron.yml` + `scripts/release/`
+
+- Extracted from claude-observability-gui's `release.yml` (CGUI-65). Jobs:
+  `check-release` (tag-exists + branch/version legality gates, parameterised
+  by `default-branch`) → `release-notes` (nested call) + `gate`
+  (typecheck/test) → `build` matrix over `runs-on-json` (upload-artifact@v7)
+  → `publish` (download-artifact@v8 merge, draft release via
+  action-gh-release@v3, then `gh api` PATCH draft=false).
+- Inputs: `ticket-prefix` (required), `default-branch`, `node-version`,
+  `runs-on-json`, `dist-command`, `build-env-json`.
+- Script contract: `typecheck`, `test`, `build`, `dist`; `rebuild` optional.
+- `scripts/release/rc-tag.js`, `release-tag.js` — canonical copies of COG's
+  scripts; `release-tag.js` now detects the default branch from
+  `origin/HEAD` instead of hardcoding `main`. Callers vendor them.
+- **Adopters:** none yet. Intended first: claude-observability-gui (source).
+  anvil deliberately NOT targeted for now (being worked separately;
+  ANVL-124/138 cover its own pin bumps).
+
+### Community health files & `templates/`
+
+- Inherited org-wide by public repos without their own: `SECURITY.md`,
+  `CONTRIBUTING.md`, `.github/PULL_REQUEST_TEMPLATE.md`,
+  `.github/ISSUE_TEMPLATE/{bug_report,feature_request}.md` + `config.yml`.
+  All stubs (marked `<!-- STUB -->`).
+- `templates/` (must be copied per repo — NOT inherited): `dependabot.yml`,
+  `CODEOWNERS` (`@tkm3d1a`), `.gitattributes` (from homelab), `.editorconfig`,
+  `claude-settings.json` (commit-reminder hook, wording identical to anvil's),
+  `CLAUDE.md` skeleton.
+
+### Parked: brand repo & plugin marketplace
+
+- `docs/future-brand-and-plugins.md` — findings + proposal, not started.
+  User explicitly parked this on 2026-08-22.
+
 ### Node 20 Actions runtime deprecation fix
 
 - `docs/node20-action-deprecation.md` — source: Jira
@@ -188,6 +241,17 @@ before doing that work in either repo.
 Newest first. One entry per notable change — what changed and why, not a
 line-by-line diff (git history already has that).
 
+- **2026-08-22** — Org-wide alignment pass. Inventoried all 8 active repos +
+  homelab + `~/.claude`; findings: zero consumers of `ci-typescript`/
+  `ci-electron`, no Python/Flutter CI, anvil↔COG release.yml drift, no
+  community files anywhere, all Claude skills global-only. Added
+  `ci-python.yml`, `ci-flutter.yml` (stub), `release-electron.yml` +
+  `scripts/release/`, inherited community-file stubs, `templates/`, and
+  `docs/future-brand-and-plugins.md`. Jira migration tickets created: CGUI-94,
+  TKFW-47 (website), LS-54 (lazy-sleeper) — migrations happen via an agent
+  inside each repo, not from here. ANVL ticket deliberately not created and
+  anvil's release pipeline left alone: user is working anvil separately.
+  PR #5 on this repo.
 - **2026-08-01** — Rebuilt `profile/README.md` from a 4-line placeholder into
   a real org landing page: real voice/copy pulled from
   `TKForgeWorks_website`'s actual content files (not invented), a repo table

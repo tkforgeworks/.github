@@ -1,0 +1,123 @@
+# TK ForgeWorks standard: generic Python CI validation (uv + ruff + pytest).
+# Consume from any Python repo's CI workflow:
+#
+#   jobs:
+#     ci:
+#       uses: tkforgeworks/.github/.github/workflows/ci-python.yml@main
+#       with:
+#         postgres-image: postgres:16-alpine     # optional
+#         post-test-command: |                  # optional
+#           uv run alembic upgrade head
+#           uv run alembic downgrade base
+#           uv run alembic upgrade head
+#
+# Tooling contract (required in the caller):
+#   - uv-managed project with a committed uv.lock (`uv sync --locked --dev`)
+#   - ruff configured in pyproject.toml (check + format)
+#   - pytest discoverable from the repo root
+#
+# Unlike ci-typescript.yml, lint is BLOCKING here: the only current adopter
+# (lazy-sleeper) already gates on ruff, so there is no transition period
+# needed. See docs/ci-standards.md.
+#
+# Postgres: when `postgres-image` is set, a container is started with
+# docker on the runner (a `services:` block cannot be made conditional in a
+# reusable workflow). DATABASE_URL is exported for every later step using
+# the `postgres-*` inputs.
+
+name: Python CI
+
+on:
+  workflow_call:
+    inputs:
+      runs-on:
+        description: 'Runner label'
+        required: false
+        type: string
+        default: 'ubuntu-latest'
+      python-version:
+        description: 'Python version; defaults to the caller''s .python-version file'
+        required: false
+        type: string
+        default: ''
+      postgres-image:
+        description: 'Postgres image to start for tests (e.g. postgres:16-alpine); empty = no database'
+        required: false
+        type: string
+        default: ''
+      postgres-user:
+        required: false
+        type: string
+        default: 'app'
+      postgres-password:
+        required: false
+        type: string
+        default: 'app'
+      postgres-db:
+        required: false
+        type: string
+        default: 'app'
+      database-url-driver:
+        description: 'SQLAlchemy-style URL scheme used to build DATABASE_URL'
+        required: false
+        type: string
+        default: 'postgresql+psycopg'
+      test-command:
+        required: false
+        type: string
+        default: 'uv run pytest -q'
+      post-test-command:
+        description: 'Optional extra validation after tests (e.g. alembic upgrade/downgrade round-trip)'
+        required: false
+        type: string
+        default: ''
+      env-json:
+        description: 'JSON object of extra env vars for test steps'
+        required: false
+        type: string
+        default: '{}'
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    name: ci
+    runs-on: ${{ inputs.runs-on }}
+    env: ${{ fromJSON(inputs.env-json) }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          python-version: ${{ inputs.python-version }}
+
+      - name: Install
+        run: uv sync --locked --dev
+
+      - name: Start Postgres
+        if: inputs.postgres-image != ''
+        run: |
+          docker run -d --name ci-postgres \
+            -e POSTGRES_USER='${{ inputs.postgres-user }}' \
+            -e POSTGRES_PASSWORD='${{ inputs.postgres-password }}' \
+            -e POSTGRES_DB='${{ inputs.postgres-db }}' \
+            -p 5432:5432 '${{ inputs.postgres-image }}'
+          for i in $(seq 1 30); do
+            if docker exec ci-postgres pg_isready -U '${{ inputs.postgres-user }}' >/dev/null 2>&1; then
+              echo "Postgres ready"; break
+            fi
+            sleep 1
+          done
+          echo "DATABASE_URL=${{ inputs.database-url-driver }}://${{ inputs.postgres-user }}:${{ inputs.postgres-password }}@localhost:5432/${{ inputs.postgres-db }}" >> "$GITHUB_ENV"
+
+      - name: Lint
+        run: uv run ruff check . && uv run ruff format --check .
+
+      - name: Test
+        run: ${{ inputs.test-command }}
+
+      - name: Post-test validation
+        if: inputs.post-test-command != ''
+        run: ${{ inputs.post-test-command }}

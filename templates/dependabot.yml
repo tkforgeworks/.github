@@ -1,0 +1,33 @@
+# Template — dependabot.yml is NOT inherited from the org .github repo; copy
+# to <repo>/.github/dependabot.yml and delete the ecosystems that don't apply.
+# Weekly, grouped, so it produces one PR per ecosystem instead of a flood.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
+
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      npm-minor-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: uv
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      python-minor-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: pub
+    directory: /
+    schedule:
+      interval: weekly
