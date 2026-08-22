@@ -143,7 +143,7 @@ before doing that work in either repo.
   `post-test-command` (alembic round-trip etc.), `env-json`.
 - Job name is `ci` — matches lazy-sleeper's existing required check, so its
   ruleset needs no PATCH on migration.
-- **Adopters:** none yet. Intended: `lazy-sleeper` (ticket drafted 2026-08-22).
+- **Adopters:** none yet. Intended: `lazy-sleeper` (LS-54).
 
 ### CI / validation (Flutter) — `ci-flutter.yml` (STUB)
 
@@ -247,10 +247,11 @@ line-by-line diff (git history already has that).
   community files anywhere, all Claude skills global-only. Added
   `ci-python.yml`, `ci-flutter.yml` (stub), `release-electron.yml` +
   `scripts/release/`, inherited community-file stubs, `templates/`, and
-  `docs/future-brand-and-plugins.md`. Jira migration tickets drafted for
-  CGUI, TKFW (website), LS (lazy-sleeper), ANVL (repo migration to happen via
-  an agent inside each repo, not from here). anvil's release pipeline left
-  alone by request.
+  `docs/future-brand-and-plugins.md`. Jira migration tickets created: CGUI-94,
+  TKFW-47 (website), LS-54 (lazy-sleeper) — migrations happen via an agent
+  inside each repo, not from here. ANVL ticket deliberately not created and
+  anvil's release pipeline left alone: user is working anvil separately.
+  PR #5 on this repo.
 - **2026-08-01** — Rebuilt `profile/README.md` from a 4-line placeholder into
   a real org landing page: real voice/copy pulled from
   `TKForgeWorks_website`'s actual content files (not invented), a repo table
