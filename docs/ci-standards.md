@@ -137,6 +137,37 @@ configs exist. Revisit promoting `lint` (and the others) to blocking once
 configs are actually authored and stable — do this deliberately, one check
 at a time, not as a silent side effect of an unrelated change.
 
+## Python: `ci-python.yml`
+
+Same philosophy, different toolchain. Contract in the caller:
+
+- uv project with a committed `uv.lock` (the workflow runs
+  `uv sync --locked --dev` — an out-of-date lock fails fast, by design)
+- ruff configured in `pyproject.toml`; both `ruff check` and
+  `ruff format --check` run and are **blocking** (lazy-sleeper, the first
+  adopter, already gates on them — no transition period needed)
+- pytest discoverable from the repo root (`test-command` overrides)
+
+Database-backed tests: set `postgres-image` and the `postgres-*` inputs; the
+workflow starts the container with `docker run` (a `services:` block can't
+be conditional inside a reusable workflow), waits for `pg_isready`, and
+exports `DATABASE_URL` built from `database-url-driver` (default
+`postgresql+psycopg`). Anything that must run after tests — alembic
+upgrade/downgrade/upgrade round-trips — goes in `post-test-command`.
+
+The job is named `ci` so a repo whose ruleset already requires `ci` (as
+lazy-sleeper's does) migrates without a ruleset PATCH.
+
+## Flutter: `ci-flutter.yml` — stub
+
+Written before any Flutter repo exists, so `lazy-sleeper-app`'s first story
+can adopt rather than hand-roll. Runs `flutter pub get`, `dart format
+--set-exit-if-changed`, `flutter analyze`, `flutter test` via
+`subosito/flutter-action@v2`. No platform builds — those belong in a release
+workflow. **Treat every input default as provisional** until the first real
+run; in particular `flutter-version` (empty = latest stable) should be pinned
+once the project's SDK is chosen.
+
 ## Agent Adoption Runbook
 
 Adopting either workflow is a change made **inside the consuming repo**
@@ -285,6 +316,37 @@ steps below assume that context.
 9. Confirm `lint` shows as a warning if it finds issues, while
    `typecheck`/`test`/`audit`/`build` genuinely gate merge — on both `quick`
    (push) and `full` (PR), since both call `ci-typescript.yml`.
+
+### Adopting in TKForgeWorks_website
+
+Plain Next.js static-export repo — `ci-typescript.yml`, not the Electron one.
+
+1. `package.json` already has `lint`, `typecheck`, `build`. Add a `test`
+   script. There is no test framework installed; `"test": "echo \"no tests yet\" && exit 0"`
+   is acceptable as the first increment so the contract is satisfied — do
+   not skip `test` in the workflow.
+2. Replace the body of `.github/workflows/ci.yml` with the canonical trigger/
+   concurrency envelope above plus
+   `uses: tkforgeworks/.github/.github/workflows/ci-typescript.yml@main`.
+   Keep the top-level job id `ci` if you want to preserve the job name for
+   the ruleset; the shared job is named `validate`, so the reported check
+   becomes `ci / validate`.
+3. `npm audit --omit=dev --audit-level=high` is blocking — run it locally
+   first and resolve anything it flags before opening the PR.
+4. The repo's ruleset ("Branch Protection Rules") differs from the org
+   standard: one bypass actor, no required check. Align it with
+   `docs/branch-protection-ruleset.md` and require the new check name once
+   it has reported on a PR.
+
+### Adopting in lazy-sleeper
+
+1. Replace `.github/workflows/ci.yml` body with the envelope plus
+   `uses: tkforgeworks/.github/.github/workflows/ci-python.yml@main` and
+   the inputs shown in the README (`postgres-image: postgres:16-alpine`,
+   lazysleeper user/password/db, the alembic `post-test-command`).
+2. Job name stays `ci` → ruleset needs no change. Verify on the PR that the
+   required check reports under the same name before merging.
+3. `daily-pull.yml` is unrelated to validation and stays hand-rolled.
 
 ## Verification
 

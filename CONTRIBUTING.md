@@ -1,0 +1,29 @@
+# Contributing
+
+<!-- STUB — org-wide default inherited by every public tkforgeworks repo that lacks its own CONTRIBUTING.md. Refine later. -->
+
+Thanks for your interest. These are personal projects built for fun and
+learning; contributions are welcome but there are no deadlines and no
+guarantees of review turnaround.
+
+## Ground rules
+
+- **Open an issue first** for anything larger than a typo fix so the approach
+  can be agreed before code is written.
+- **All changes land via pull request** to the default branch. Branches are
+  protected by a repository ruleset with no bypass — see
+  [`docs/branch-protection-ruleset.md`](https://github.com/tkforgeworks/.github/blob/main/docs/branch-protection-ruleset.md).
+- **CI must pass.** Repos consume the shared workflows in
+  [`tkforgeworks/.github`](https://github.com/tkforgeworks/.github) — see
+  [`docs/ci-standards.md`](https://github.com/tkforgeworks/.github/blob/main/docs/ci-standards.md).
+- **Commit subjects are the changelog.** Write them in the imperative mood.
+  Bug fixes start with `Fix ...` (or `<JIRA-KEY>-N: Fix ...` when a ticket
+  exists); everything else lands under *Changes* in the generated release
+  notes. Don't leave the codebase half-finished in any single commit.
+- **Tests test behavior**, not implementation details.
+
+## Conventions shared across repos
+
+- Electron apps package with **electron-builder**, never Electron Forge.
+- Prefer explicit code over framework magic; constructor injection over field
+  injection.

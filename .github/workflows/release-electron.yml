@@ -1,0 +1,199 @@
+# TK ForgeWorks standard: tagless Electron release pipeline. Extracted from
+# claude-observability-gui's release.yml (CGUI-65, itself ported from anvil).
+#
+# Model: version bumps are ordinary commits made by scripts/release/rc-tag.js
+# and release-tag.js (vendor those into the caller's scripts/). This workflow
+# triggers on branch pushes, self-gates on whether the version's tag already
+# exists, and the tag is created server-side when the GitHub release is
+# published — so it works under a no-bypass ruleset. RC prereleases cut from
+# v*/main release branches; stable releases cut on merge to the default branch.
+#
+# Consume from a repo's release workflow:
+#
+#   name: Release
+#   on:
+#     push:
+#       branches: [main, 'v*/main']
+#   permissions:
+#     contents: write
+#   concurrency:
+#     group: release
+#     cancel-in-progress: false
+#   jobs:
+#     release:
+#       uses: tkforgeworks/.github/.github/workflows/release-electron.yml@main
+#       with:
+#         ticket-prefix: CGUI
+#         runs-on-json: '["windows-latest", "ubuntu-latest"]'
+#
+# Script-name contract (caller's package.json): typecheck, test, build, and
+# `dist` (electron-builder producing installers under release/). `rebuild`
+# is optional (native modules). Release notes come from release-notes.yml,
+# which needs the JIRA_BASE_URL repo/org variable for ticket linking.
+#
+# Immutable releases lock assets at publish time, so the release is created
+# as a draft, assets uploaded, then published via the API.
+
+name: Electron Release
+
+on:
+  workflow_call:
+    inputs:
+      ticket-prefix:
+        description: 'Jira project key for release-notes ticket linking'
+        required: true
+        type: string
+      default-branch:
+        description: 'Branch that stable releases are cut from'
+        required: false
+        type: string
+        default: 'main'
+      node-version:
+        required: false
+        type: string
+        default: '22'
+      runs-on-json:
+        description: 'JSON array of runner labels to build installers on, one per OS'
+        required: false
+        type: string
+        default: '["windows-latest"]'
+      dist-command:
+        required: false
+        type: string
+        default: 'npm run dist -- --publish never'
+      build-env-json:
+        description: 'JSON object of extra env vars for build/dist steps'
+        required: false
+        type: string
+        default: '{}'
+
+permissions:
+  contents: write
+
+jobs:
+  check-release:
+    runs-on: ubuntu-latest
+    outputs:
+      should-release: ${{ steps.check.outputs.should-release }}
+      version: ${{ steps.check.outputs.version }}
+      is-prerelease: ${{ steps.check.outputs.is-prerelease }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: check
+        env:
+          DEFAULT_BRANCH: ${{ inputs.default-branch }}
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          TAG="v${VERSION}"
+          BRANCH="${{ github.ref_name }}"
+          IS_RC=false
+          if echo "$VERSION" | grep -qE '(rc|alpha|beta)'; then
+            IS_RC=true
+          fi
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists — skipping release"
+            echo "should-release=false" >> $GITHUB_OUTPUT
+          elif [ "$BRANCH" = "$DEFAULT_BRANCH" ] && [ "$IS_RC" = "true" ]; then
+            # An RC version should never merge to the default branch — run
+            # release:final on the release branch first.
+            echo "RC version $VERSION on $BRANCH — skipping release"
+            echo "should-release=false" >> $GITHUB_OUTPUT
+          elif [ "$BRANCH" != "$DEFAULT_BRANCH" ] && [ "$IS_RC" = "false" ]; then
+            # release:final pushes a stable version to the release branch
+            # before its PR merges; the stable release is cut on merge.
+            echo "Stable version $VERSION on $BRANCH — releasing on merge to $DEFAULT_BRANCH, skipping"
+            echo "should-release=false" >> $GITHUB_OUTPUT
+          else
+            echo "Tag $TAG does not exist — will release"
+            echo "should-release=true" >> $GITHUB_OUTPUT
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            echo "is-prerelease=$IS_RC" >> $GITHUB_OUTPUT
+          fi
+
+  release-notes:
+    if: needs.check-release.outputs.should-release == 'true'
+    needs: check-release
+    uses: tkforgeworks/.github/.github/workflows/release-notes.yml@main
+    with:
+      ticket-prefix: ${{ inputs.ticket-prefix }}
+      release-version: v${{ needs.check-release.outputs.version }}
+
+  # Gate: no release is cut if type-check or tests fail.
+  gate:
+    if: needs.check-release.outputs.should-release == 'true'
+    needs: check-release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+
+  build:
+    if: needs.check-release.outputs.should-release == 'true'
+    needs: [check-release, gate]
+    strategy:
+      fail-fast: true
+      matrix:
+        os: ${{ fromJSON(inputs.runs-on-json) }}
+    runs-on: ${{ matrix.os }}
+    env: ${{ fromJSON(inputs.build-env-json) }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: npm
+      - run: npm ci
+      - name: Rebuild native modules for Electron
+        run: npm run rebuild --if-present
+      - run: npm run build
+      - name: Build installers
+        run: ${{ inputs.dist-command }}
+      - uses: actions/upload-artifact@v7
+        with:
+          name: installers-${{ matrix.os }}
+          path: |
+            release/*.exe
+            release/*.AppImage
+            release/*.deb
+            release/*.rpm
+          if-no-files-found: error
+
+  publish:
+    if: needs.check-release.outputs.should-release == 'true'
+    needs: [check-release, release-notes, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: installers-*
+          path: release
+          merge-multiple: true
+
+      # Publishing creates the v{version} tag at the triggering commit.
+      - name: Create draft release with assets
+        id: draft
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: v${{ needs.check-release.outputs.version }}
+          target_commitish: ${{ github.sha }}
+          files: |
+            release/*.exe
+            release/*.AppImage
+            release/*.deb
+            release/*.rpm
+          body: ${{ needs.release-notes.outputs.body }}
+          draft: true
+          prerelease: ${{ needs.check-release.outputs.is-prerelease }}
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PATCH repos/${{ github.repository }}/releases/${{ steps.draft.outputs.id }} -F draft=false
