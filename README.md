@@ -60,15 +60,29 @@ jobs:
         uv run alembic upgrade head
 ```
 
-### CI / validation (Flutter) — stub
+### CI / validation (Flutter)
 
-`ci-flutter.yml` — `flutter pub get` → `dart format` → `flutter analyze` → `flutter test`. **Unvalidated**: authored ahead of `lazy-sleeper-app` (the org's first Flutter project) so its first story lands on the shared workflow; expect to adjust once `flutter create` fixes the real layout.
+`ci-flutter.yml` — `flutter pub get` → `dart format` → `flutter analyze` → `flutter test`. Pin `flutter-version` in the caller. `dart format` does not honour `analysis_options.yaml` excludes, so every `.dart` file in the repo (including any under `docs/`) must be formatted. Also used as the release gate by `release-flutter.yml` (nested reusable), so a repo's `ci.yml` and `release.yml` should pass the same `flutter-version`.
 
-### Electron release pipeline
+Adopters: `lazy-sleeper-app` (first adopter, LS-39 PR #1, 2026-08-28 — passed unchanged, ~1m25s–2m05s on `ubuntu-latest` with `flutter-version: '3.47.2'`).
 
-`release-electron.yml` + `scripts/release/{rc-tag,release-tag}.js` — the tagless RC → stable release model extracted from `claude-observability-gui` (CGUI-65, originally anvil): version bumps are ordinary commits, the workflow self-gates on whether `v{version}` already exists and on branch/version legality (RCs only from `v*/main`, stable only from the default branch), builds installers on a per-OS matrix (`runs-on-json`), and publishes a draft-then-published release whose tag is created server-side — so it works under a no-bypass ruleset. Consumes `release-notes.yml` internally. Script contract: `typecheck`/`test`/`build`/`dist` (+ optional `rebuild`). Vendor the two scripts into the caller's `scripts/` and wire the `rc:*` / `release:*` npm scripts. See the workflow header for the caller wrapper.
+### Release pipeline
+
+Tagless RC → stable model shared by every toolchain: version bumps are ordinary commits made by a vendored script, the release workflow self-gates on whether `v{version}` already exists and on branch/version legality (RCs only from `vX.Y.Z/main` release branches, stable only from the default branch), and the tag is created server-side when the release is published — so it works under a no-bypass ruleset. Both workflows consume `release-notes.yml` internally. Never hand-edit the version or push tags.
+
+#### Electron — `release-electron.yml` + `scripts/release/{rc-tag,release-tag}.js`
+
+`release-electron.yml` — extracted from `claude-observability-gui` (CGUI-65, originally anvil): `check-release` → `release-notes` + `gate` (typecheck/test) → `build` matrix over `runs-on-json` → `publish` (draft, then published). Script contract: `typecheck`/`test`/`build`/`dist` (+ optional `rebuild`). `rc-tag.js <patch|minor|major>` bumps to `X.Y.Z-rc.N` on the release branch; `release-tag.js final` bumps to `X.Y.Z` and opens the release PR (run from the default branch it creates `vX.Y.Z/main` first). Vendor the two scripts into the caller's `scripts/release/` and wire the `rc:*` / `release:*` npm scripts. See the workflow header for the caller wrapper.
 
 Not yet adopted — `claude-observability-gui` is the intended first adopter (its `release.yml` is the source). Note CGUI-79 (Linux targets) is served by `runs-on-json: '["windows-latest","ubuntu-latest"]'`.
+
+#### Flutter — `release-flutter.yml` + `scripts/release/bump-version.{ps1,sh}`
+
+`release-flutter.yml` — job for job the Electron twin: `check-release` (reads `pubspec.yaml` `version:`, strips `+BUILD`) → `release-notes` + `gate` (`uses: ci-flutter.yml` — the PR check *is* the release gate) → `build-windows` (Inno Setup installer + zip, `windows-latest`) and `build-android` (keystore-signed APK, `ubuntu-latest`) → `publish` (draft → upload → publish; a platform switched off via input is skipped without blocking publish, a failed one still blocks). Inputs: `ticket-prefix`, `flutter-version` (both required — pin the SDK), `default-branch`, `flutter-channel`, `java-version`, `build-windows` / `build-android`. Secrets `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` via `secrets: inherit`. Script contract in the caller: `scripts/release/build-windows.ps1` → `release/*.exe` (+ `*.zip`), `scripts/release/build-android.sh` → `release/*.apk`, `release/` gitignored. See the workflow header for the caller wrapper.
+
+`bump-version.ps1` / `bump-version.sh` (identical behaviour; vendor both into the caller's `scripts/release/`) are the pubspec adapter for `rc-tag.js` / `release-tag.js`, with one deliberate difference: **the base version comes from the release-branch name** (`vX.Y.Z/main`), because `pubspec.yaml` carries the *upcoming* version from the moment the branch is cut, whereas `package.json` holds the *last shipped* one. So there is no `patch|minor|major` — the CLI is `rc` | `final` (optional `X.Y.Z` override). `rc` → `X.Y.Z-rc.N+BUILD`, commits `Release candidate X.Y.Z-rc.N`, pushes; `final` → `X.Y.Z+BUILD`, commits `X.Y.Z`, pushes, opens the release PR. `+BUILD` (Android `versionCode`) increments on every bump. Refuses to run on the default branch; `final` refuses if `vX.Y.Z` already exists. Flutter repos do not need Node.
+
+Adopters: `lazy-sleeper-app` (source, LS-73 PR #14; validated end to end by `v0.1.0-rc.1`, run `33223651283` — Windows installer + zip + signed APK, ~9 min for the full run).
 
 ### Community health files & templates
 

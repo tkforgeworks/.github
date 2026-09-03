@@ -145,12 +145,41 @@ before doing that work in either repo.
   ruleset needs no PATCH on migration.
 - **Adopters:** none yet. Intended: `lazy-sleeper` (LS-54).
 
-### CI / validation (Flutter) — `ci-flutter.yml` (STUB)
+### CI / validation (Flutter) — `ci-flutter.yml`
 
 - `subosito/flutter-action@v2` → `flutter pub get` → `dart format
   --set-exit-if-changed` → `flutter analyze` → `flutter test`. No builds.
-- **Unvalidated** — no Flutter repo exists yet; written so `lazy-sleeper-app`'s
-  first story lands on it. Expect changes once `flutter create` runs.
+- **Adopters:** lazy-sleeper-app (LS-39 PR #1, 2026-08-28) — passed unchanged
+  with `flutter-version: '3.47.2'` pinned. Also runs nested as
+  `release-flutter.yml`'s gate. Adopter gotcha: `dart format` ignores
+  `analysis_options.yaml` excludes, so `.dart` files under `docs/` must be
+  formatted too.
+
+### Flutter release pipeline — `release-flutter.yml` + `scripts/release/bump-version.{ps1,sh}`
+
+- Built in lazy-sleeper-app (LS-73, PR #14), validated by `v0.1.0-rc.1`
+  (run 33223651283: Inno Setup installer + zip, keystore-signed APK), then
+  promoted here unchanged apart from the header. Job for job the Electron
+  twin: `check-release` (pubspec `version:`, `+BUILD` stripped) →
+  `release-notes` + `gate` (`uses: ci-flutter.yml`) → `build-windows` /
+  `build-android` → `publish` (`if: always()` so a platform switched off by
+  input doesn't skip publishing; a failed one still blocks).
+- Inputs: `ticket-prefix`, `flutter-version` (required), `default-branch`,
+  `flutter-channel`, `java-version`, `build-windows`, `build-android`.
+  Secrets (`required: false`, caller passes `secrets: inherit`):
+  `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`.
+- Caller script contract: `scripts/release/build-windows.ps1` →
+  `release/*.exe` (+`*.zip`); `scripts/release/build-android.sh` →
+  `release/*.apk`; `release/` gitignored.
+- `bump-version.{ps1,sh}` — standalone pubspec adapter (Flutter repos don't
+  need Node). CLI is `rc` | `final` [`X.Y.Z`]: **base version comes from the
+  `vX.Y.Z/main` branch name**, since pubspec carries the upcoming version
+  from branch cut (package.json holds the last shipped one, hence
+  patch/minor/major there). `+BUILD` bumps every time. Refuses the default
+  branch; `final` refuses if the tag exists.
+- **Adopters:** lazy-sleeper-app (source). Its switch-over to the org path
+  (`uses: tkforgeworks/.github/...@main`, delete local copy) is a PR on its
+  side, followed by an RC to prove the org-hosted copy.
 
 ### Electron release pipeline — `release-electron.yml` + `scripts/release/`
 
@@ -165,7 +194,9 @@ before doing that work in either repo.
 - Script contract: `typecheck`, `test`, `build`, `dist`; `rebuild` optional.
 - `scripts/release/rc-tag.js`, `release-tag.js` — canonical copies of COG's
   scripts; `release-tag.js` now detects the default branch from
-  `origin/HEAD` instead of hardcoding `main`. Callers vendor them.
+  `origin/HEAD` instead of hardcoding `main`, and when run from the default
+  branch creates `vX.Y.Z/main` (was `release/vX.Y.Z`, which nothing else
+  in the pipeline recognised). Callers vendor them.
 - **Adopters:** none yet. Intended first: claude-observability-gui (source).
   anvil deliberately NOT targeted for now (being worked separately;
   ANVL-124/138 cover its own pin bumps).
@@ -241,6 +272,19 @@ before doing that work in either repo.
 Newest first. One entry per notable change — what changed and why, not a
 line-by-line diff (git history already has that).
 
+- **2026-09-03** — Promoted the Flutter release pipeline from lazy-sleeper-app
+  per `HANDOFF-flutter-version-branch-flow.md` (items 5, 6, and the Flutter
+  bits of 7): `release-flutter.yml` (header rewritten for the org repo,
+  consumer snippet now the org `uses:` path, otherwise unchanged) and
+  `scripts/release/bump-version.{ps1,sh}`. Dropped every "STUB — UNVALIDATED"
+  marker on `ci-flutter.yml` and recorded lazy-sleeper-app as adopter of
+  both. README "Electron release pipeline" → "Release pipeline" with
+  Electron/Flutter subsections. Fixed `release-tag.js` creating
+  `release/vX.Y.Z` instead of `vX.Y.Z/main`. `templates/CLAUDE.md` gained
+  the "never hand-edit the version or push tags" release line. Handoff
+  items 1–4 (branching-model docs, CI envelope for PRs into `v*/main`,
+  release-branch ruleset — option B chosen, PUT-not-PATCH fix) are the next
+  PR.
 - **2026-08-22** — Org-wide alignment pass. Inventoried all 8 active repos +
   homelab + `~/.claude`; findings: zero consumers of `ci-typescript`/
   `ci-electron`, no Python/Flutter CI, anvil↔COG release.yml drift, no

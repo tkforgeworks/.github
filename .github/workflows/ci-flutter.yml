@@ -1,10 +1,10 @@
-# TK ForgeWorks standard: Flutter CI validation. *** STUB — UNVALIDATED ***
+# TK ForgeWorks standard: Flutter CI validation.
 #
-# Authored ahead of the first Flutter repo (lazy-sleeper-app) so that its
-# first story lands on the shared workflow instead of a hand-rolled one.
-# No adopter has run this yet. Expect to adjust when `flutter create` fixes
-# the real project layout (Flutter SDK channel/version, whether a
-# pubspec.lock is committed, integration-test needs, platform toolchains).
+# Validated by lazy-sleeper-app (first adopter, LS-39 PR #1, 2026-08-28):
+# passed unchanged, ~1m25s–2m05s on ubuntu-latest with a pinned
+# flutter-version. Also runs as a *nested* reusable: release-flutter.yml
+# calls it as the release gate, so a repo's ci.yml and release.yml should
+# pass the same flutter-version.
 #
 # Consume from a Flutter repo's CI workflow:
 #
@@ -12,11 +12,13 @@
 #     ci:
 #       uses: tkforgeworks/.github/.github/workflows/ci-flutter.yml@main
 #       with:
-#         flutter-version: '3.x'
+#         flutter-version: '3.47.2'   # pin it; empty = latest stable
 #
 # Contract: `dart format`, `flutter analyze`, and `flutter test` must all pass
-# from the repo root. Builds are intentionally NOT part of CI here — platform
-# builds (web/desktop/mobile) belong to a release workflow once one exists.
+# from the repo root. Note `dart format` does not honour
+# analysis_options.yaml excludes — any .dart file in the repo (docs/ included)
+# must be formatted. Builds are intentionally NOT part of CI here — platform
+# builds belong to release-flutter.yml.
 
 name: Flutter CI
 
