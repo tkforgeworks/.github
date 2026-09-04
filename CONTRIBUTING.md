@@ -10,8 +10,12 @@ guarantees of review turnaround.
 
 - **Open an issue first** for anything larger than a typo fix so the approach
   can be agreed before code is written.
-- **All changes land via pull request** to the default branch. Branches are
-  protected by a repository ruleset with no bypass — see
+- **All changes land via pull request** to the current release branch
+  (`vX.Y.Z/main`); release branches land on the default branch via a release
+  PR. Topic branches are `vX.Y.Z/<KEY>-N-topic`. See
+  [`docs/branching-and-release.md`](https://github.com/tkforgeworks/.github/blob/main/docs/branching-and-release.md).
+  The default branch is protected by a repository ruleset with no bypass;
+  release branches by a lighter one — see
   [`docs/branch-protection-ruleset.md`](https://github.com/tkforgeworks/.github/blob/main/docs/branch-protection-ruleset.md).
 - **CI must pass.** Repos consume the shared workflows in
   [`tkforgeworks/.github`](https://github.com/tkforgeworks/.github) — see
