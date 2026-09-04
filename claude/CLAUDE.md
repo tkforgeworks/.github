@@ -255,7 +255,12 @@ before doing that work in either repo.
   decision when it goes public. User said so explicitly on 2026-09-03.
 - Copyright holder is written as "Tim Klimpel (TK ForgeWorks)" because TK
   ForgeWorks is not a legal entity.
-- **Adopters:** `.github` (this repo). Rollout PRs not yet opened.
+- **Adopters:** `.github` (PR #9). Rollout PRs opened 2026-09-03: anvil #18,
+  COG #23, TKForgeWorks_website #16, lazy-sleeper #48, cheesy-scribe #2,
+  lazy-sleeper-app #15 (into `v0.1.0/main`). robo-narc skipped (empty repo).
+  First run hit a script bug: `gh api` prints a 409 "repository is empty"
+  JSON body on *stdout*, which got captured as the sha — fixed by
+  validating the sha as 40 hex chars.
 
 ### Parked: brand repo & plugin marketplace
 

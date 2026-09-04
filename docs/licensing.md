@@ -113,5 +113,8 @@ Every public repo should read `apache-2.0`.
 ## Adopters
 
 - `.github` (this repo) — source of truth for `LICENSE`, 2026-09-03.
-- Others: see the PRs opened by the rollout script; update this list as they
-  merge.
+- Rollout PRs opened 2026-09-03 (update as they merge): anvil #18,
+  claude-observability-gui #23, TKForgeWorks_website #16, lazy-sleeper #48,
+  cheesy-scribe #2, lazy-sleeper-app #15 (into `v0.1.0/main`).
+- `robo-narc` is an empty repo (no commits) — the script skips it; add
+  LICENSE/NOTICE with its first commit.

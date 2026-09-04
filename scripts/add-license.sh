@@ -61,8 +61,9 @@ for spec in "$@"; do
   fi
 
   sha="$(gh api "repos/$ORG/$repo/git/ref/heads/$base" --jq '.object.sha' 2>/dev/null || true)"
+  if [[ ! "$sha" =~ ^[0-9a-f]{40}$ ]]; then sha=""; fi  # 409 "repository is empty" lands on stdout
   if [[ -z "$sha" ]]; then
-    echo "-- $repo: base branch '$base' not found — skipping"
+    echo "-- $repo: base branch '$base' not found (empty repo?) — skipping"
     continue
   fi
 
