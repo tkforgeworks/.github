@@ -21,7 +21,20 @@ sync when shared items are added, changed, or adopted elsewhere.
 
 ## Shared items currently available
 
-### Release notes generation
+### Branching model — `docs/branching-and-release.md`
+
+- Org-wide, every repo: topic `vX.Y.Z/<KEY>-N-topic` → PR into release
+  branch `vX.Y.Z/main` → release PR into the default branch. Release branch
+  is named for the version it will ship; Electron manifests hold the *last
+  shipped* version, Flutter manifests the *upcoming* one (drives the two
+  script CLIs). Written 2026-09-03 from the lazy-sleeper-app handoff.
+- Release branches get only `non_fast_forward` + `deletion` — a required
+  status check would reject the scripts' direct bump pushes (GitHub docs:
+  commits must pass the check on another branch first). The handoff's
+  "option B" assumed otherwise; corrected during implementation. Red topic
+  merges are caught at the release PR.
+- **Adopters:** lazy-sleeper-app (`v0.1.0/main`). anvil / COG need the
+  `'v*/main'` PR trigger + release-branch ruleset on their side.
 
 - `scripts/generate-release-notes.js` — canonical generator, builds Markdown
   release notes from commit subjects since the previous tag
@@ -68,14 +81,18 @@ explicitly).
   protection): no force-push/deletion, PRs required with a passing named CI
   check, zero bypass actors (not even admins). Includes the replication
   `gh api` POST command, per-repo adaptation (CI job name must match exactly,
-  how to require multiple checks), a PATCH flow for updating an existing
-  mirrored ruleset, prerequisites (CI must exist and have reported on a PR
-  first, or the required check blocks merges forever), and a plan-requirement
-  note (private repos need GitHub Team/Enterprise for rulesets).
+  how to require multiple checks), an update flow for an existing mirrored
+  ruleset (**`PUT`** — `PATCH` 404s on this endpoint, verified 2026-08-28),
+  prerequisites (CI must exist and have reported on a PR first, or the
+  required check blocks merges forever), and a plan-requirement note
+  (private repos need GitHub Team/Enterprise for rulesets).
+- Second ruleset `release-branches` on `refs/heads/v*/main`: deletion +
+  non-fast-forward only. Replication command in the same doc.
 
 Source of truth: `tkforgeworks/anvil` (ruleset id 16447467, "master").
 **Adopters:** `claude-observability-gui` (ruleset id 20203739, "main",
-created 2026-08-01).
+created 2026-08-01); `lazy-sleeper-app` (ruleset id 21023856, "main",
+required check `ci / ci`).
 
 ### CI / validation (TypeScript & Electron)
 
@@ -101,7 +118,7 @@ created 2026-08-01).
   content per repo (including `build-env-json` for anvil), the runner-OS fix
   for claude-observability-gui, and the reminder that adopting changes CI
   check names — the branch-protection ruleset's required context needs a
-  PATCH update read from the actual Actions run, never guessed in advance.
+  ruleset update (PUT) read from the actual Actions run, never guessed in advance.
 
 **Designed against real state, not abstractly:** reviewed both repos' actual
 `ci.yml` and `package.json` on 2026-08-01 before drafting — neither had
@@ -142,7 +159,7 @@ before doing that work in either repo.
   conditional in a reusable workflow; exports `DATABASE_URL`), `test-command`,
   `post-test-command` (alembic round-trip etc.), `env-json`.
 - Job name is `ci` — matches lazy-sleeper's existing required check, so its
-  ruleset needs no PATCH on migration.
+  ruleset needs no update on migration.
 - **Adopters:** none yet. Intended: `lazy-sleeper` (LS-54).
 
 ### CI / validation (Flutter) — `ci-flutter.yml`
@@ -272,6 +289,19 @@ before doing that work in either repo.
 Newest first. One entry per notable change — what changed and why, not a
 line-by-line diff (git history already has that).
 
+- **2026-09-03** — Branching model + CI envelope + ruleset fixes (handoff
+  items 1–4, second PR). New `docs/branching-and-release.md` makes
+  topic → `vX.Y.Z/main` → default the org standard for every repo. CI
+  envelope now `pull_request: branches: [<default>, 'v*/main']` so PRs into
+  release branches get the merge gate (before, only the release PR was
+  gated); all four runbook snippets updated; anvil and COG still need the
+  one-line change in their own `ci.yml`. Ruleset doc: PATCH → PUT (PATCH
+  404s). User chose "option B" (release-branch ruleset with a required
+  check); while implementing, verified against GitHub docs that a required
+  check rejects direct pushes of unchecked commits, which would break every
+  `rc`/`final` bump — shipped the ruleset with only `non_fast_forward` +
+  `deletion` and documented why. CONTRIBUTING/templates/CLAUDE.md updated;
+  handoff file deleted.
 - **2026-09-03** — Promoted the Flutter release pipeline from lazy-sleeper-app
   per `HANDOFF-flutter-version-branch-flow.md` (items 5, 6, and the Flutter
   bits of 7): `release-flutter.yml` (header rewritten for the org repo,

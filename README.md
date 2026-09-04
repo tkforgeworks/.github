@@ -4,6 +4,12 @@ One mans dream to make it out, and build the things he wants.  No deadlines, no 
 
 ## Shared Standards
 
+### Branching model
+
+See [`docs/branching-and-release.md`](docs/branching-and-release.md). Every repo, with or without a release pipeline: `main` is the released state; work accumulates on a `vX.Y.Z/main` release branch named for the version it will ship; topic branches are `vX.Y.Z/<KEY>-N-topic` and PR into the release branch; the release branch reaches `main` via a release PR. RCs are cut from the release branch, the stable release on merge. The doc covers how X.Y.Z is chosen, what the manifest version means per toolchain, and why release branches get only force-push/deletion protection (a required check would reject the scripts' direct bump pushes).
+
+Adopters: `lazy-sleeper-app` (`v0.1.0/main`, first on the full flow).
+
 ### Release notes generation
 
 `scripts/generate-release-notes.js` + the `release-notes.yml` reusable workflow build release bodies from commit subjects since the previous tag: version-bump and merge commits filtered, subjects split into Changes vs Bug Fixes (bug-fix subjects start with `Fix` or `<KEY>-N: Fix ...`), Jira ticket keys auto-linked. Stable releases diff against the previous *stable* tag so final notes span all release candidates. Works whether the release tag already exists (tag-triggered) or is created after notes generation (push-triggered — pass `release-version`).
@@ -31,9 +37,9 @@ Adopters: `claude-observability-gui` (tag-push releases), pattern originated in 
 
 ### Branch protection (repository ruleset)
 
-See [`docs/branch-protection-ruleset.md`](docs/branch-protection-ruleset.md) for the standard: a repository ruleset (not classic branch protection) that blocks force-pushes and deletion of the default branch, requires PRs with a passing named CI check, and disallows all bypass — including admins. Includes the replication `gh api` command, per-repo adaptation notes (CI job name, multiple required checks), an update/PATCH flow for existing rulesets, and verification steps.
+See [`docs/branch-protection-ruleset.md`](docs/branch-protection-ruleset.md) for the standard: a repository ruleset (not classic branch protection) that blocks force-pushes and deletion of the default branch, requires PRs with a passing named CI check, and disallows all bypass — including admins. A second, lighter ruleset covers release branches (`v*/main`): no force-push or deletion, nothing else. Includes the replication `gh api` commands for both, per-repo adaptation notes (CI job name, multiple required checks), an update flow for existing rulesets (`PUT`, not `PATCH` — the latter 404s), and verification steps.
 
-Adopters: `anvil` (source of truth), `claude-observability-gui` (first mirror).
+Adopters: `anvil` (source of truth), `claude-observability-gui` (first mirror), `lazy-sleeper-app` (ruleset 21023856, required check `ci / ci`).
 
 ### CI / validation (TypeScript & Electron)
 

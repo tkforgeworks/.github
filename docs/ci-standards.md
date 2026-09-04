@@ -78,7 +78,7 @@ on:
   push:
     branches-ignore: [<default-branch>]
   pull_request:
-    branches: [<default-branch>]
+    branches: [<default-branch>, 'v*/main']
 
 concurrency:
   group: ci-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.number) || github.ref }}
@@ -93,6 +93,19 @@ jobs:
     if: github.event_name == 'pull_request'
     uses: tkforgeworks/.github/.github/workflows/ci-electron.yml@main
 ```
+
+`'v*/main'` in the `pull_request` list is what makes the org branching model
+(`docs/branching-and-release.md`) work: topic branches PR into a release
+branch, so the merge-gate check has to run on PRs *into* `vX.Y.Z/main`, not
+only on the release PR into the default branch. Without it, a PR into a
+release branch gets only the `push` job — or nothing, in a repo with no
+`push` job — and the first real gate is after every topic branch is already
+in. lazy-sleeper-app's `ci.yml` is the worked example of this envelope.
+
+Merge commits landing on `vX.Y.Z/main` also fire the `push` job (it is not
+the default branch, so `branches-ignore` doesn't exclude it). That is
+intended — it re-checks the merged result — don't "fix" it by adding
+`v*/main` to `branches-ignore`.
 
 The branch-protection ruleset only needs `full`'s checks as required
 context — `quick` never runs on a `pull_request` event (its `if:` excludes
@@ -156,7 +169,7 @@ exports `DATABASE_URL` built from `database-url-driver` (default
 upgrade/downgrade/upgrade round-trips — goes in `post-test-command`.
 
 The job is named `ci` so a repo whose ruleset already requires `ci` (as
-lazy-sleeper's does) migrates without a ruleset PATCH.
+lazy-sleeper's does) migrates without a ruleset update.
 
 ## Flutter: `ci-flutter.yml`
 
@@ -188,7 +201,7 @@ standard. The steps below are written for an agent session that starts with
 no memory of the design discussion that produced this doc: it opens with
 "why" pointers back into this repo, then gives an ordered, concrete
 procedure. Read `docs/branch-protection-ruleset.md` too before step 6 in
-either runbook — it owns the ruleset PATCH mechanics referenced there.
+either runbook — it owns the ruleset update (`PUT`) mechanics referenced there.
 
 Before starting either repo, skim this file's "Script-name contract" and
 "What's blocking vs. non-blocking" sections above for the reasoning — the
@@ -218,7 +231,7 @@ steps below assume that context.
      push:
        branches-ignore: [master]
      pull_request:
-       branches: [master]
+       branches: [master, 'v*/main']
 
    concurrency:
      group: ci-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.number) || github.ref }}
@@ -237,9 +250,10 @@ steps below assume that context.
        with:
          build-env-json: '{"VITE_TELEMETRY_ENABLED":"true"}'
    ```
-   (The `on:`/`concurrency:` block here is unchanged from anvil's current
-   `ci.yml` — it already matches the canonical envelope above, confirmed,
-   not just carried over by omission. The `jobs:` section is new: `quick`
+   (The `on:`/`concurrency:` block here is anvil's current `ci.yml` plus
+   `'v*/main'` in the `pull_request` list — the one-line change that gates
+   PRs into release branches; see the envelope section above. The `jobs:`
+   section is new: `quick`
    runs on every topic-branch push — lint/typecheck/test/audit/build only,
    on `ci-typescript.yml`'s default `ubuntu-latest` — while `full` only runs
    on PRs targeting `master` and adds electronegativity/rebuild/packaging on
@@ -250,9 +264,10 @@ steps below assume that context.
 6. Push, open a PR, and read the actual Actions run to find `full`'s real
    check names (something like `full / typescript / validate` and
    `full / electron-checks` — **do not guess these in advance**, they depend
-   on the job id chosen above). Use those exact names to PATCH anvil's
-   ruleset (`docs/branch-protection-ruleset.md`), replacing the current
-   required context `validate`. `quick`'s checks are not required context —
+   on the job id chosen above). Use those exact names to update (`PUT`)
+   anvil's ruleset (`docs/branch-protection-ruleset.md`), replacing the
+   current required context `validate`. Add the release-branch ruleset from
+   the same doc while there. `quick`'s checks are not required context —
    it never runs on a `pull_request` event, so it can't report on a PR
    either way.
 7. If `npm audit --omit=dev --audit-level=high` fails on the PR (it's
@@ -287,7 +302,7 @@ steps below assume that context.
      push:
        branches-ignore: [main]
      pull_request:
-       branches: [main]
+       branches: [main, 'v*/main']
 
    concurrency:
      group: ci-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.number) || github.ref }}
@@ -309,7 +324,7 @@ steps below assume that context.
      the branch-protection ruleset already blocks except via PR-merge
      commits — so there's no CI feedback on a topic branch until a PR is
      opened. `branches-ignore: [main]` (matching anvil's canonical envelope
-     above) fixes that.
+     above) fixes that. `'v*/main'` gates PRs into release branches.
    - **`jobs:` split into `quick` (push) and `full` (PR)** rather than one
      job for both. `quick` stays on `ci-typescript.yml`'s default
      `ubuntu-latest` — no change from today for that path.
@@ -322,8 +337,9 @@ steps below assume that context.
      staying on Linux costs nothing.
 8. Push, open a PR, read the actual Actions run for `full`'s real check
    names (e.g. `full / typescript / validate`, `full / electron-checks` —
-   again, don't guess), and PATCH this repo's ruleset (current required
-   context: `typecheck-and-test`) to match. `quick`'s checks aren't required
+   again, don't guess), and update (`PUT`) this repo's ruleset (current
+   required context: `typecheck-and-test`) to match. Add the release-branch
+   ruleset from `docs/branch-protection-ruleset.md` while there. `quick`'s checks aren't required
    context — it doesn't run on `pull_request` events.
 9. Confirm `lint` shows as a warning if it finds issues, while
    `typecheck`/`test`/`audit`/`build` genuinely gate merge — on both `quick`

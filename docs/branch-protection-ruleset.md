@@ -22,7 +22,7 @@ Protection is implemented as a **repository ruleset** (`POST /repos/{owner}/{rep
 
 Ref condition: `include: ["refs/heads/master", "refs/heads/main"]`, `exclude: []` — covers either default-branch name so the same ruleset JSON works in repos that use `master` (anvil) or `main` (claude-observability-gui). **New repos should trim this to their actual default branch name** rather than cargo-culting both — including a branch name that doesn't exist is harmless, but it's noise, and if a repo's default branch is neither `main` nor `master` (e.g. `develop`, `trunk`), the ruleset silently protects nothing until the include list is corrected.
 
-Release branches (`vX.Y.Z/main`) are intentionally NOT protected — topic-branch → release-branch merges stay frictionless; protection applies at the release-merge into the default branch.
+Release branches (`vX.Y.Z/main`) get a **second, lighter ruleset** (below): no force-push, no deletion, and deliberately *no* PR rule and *no* required check, because the release scripts push version-bump commits straight to the release branch and a required check rejects any direct push whose commit hasn't already passed it. The branching model and the reasoning live in `docs/branching-and-release.md`.
 
 ## Prerequisite: CI must already exist and have reported on a PR
 
@@ -36,13 +36,14 @@ The `required_status_checks[].context` must equal the repo's CI **job name** (jo
 |---|---|
 | anvil | `validate` |
 | claude-observability-gui | `typecheck-and-test` |
+| lazy-sleeper-app | `ci / ci` (caller job `ci` → reusable job `ci`) |
 
 A wrong context blocks every PR forever (the required check never reports). Verify with:
 `grep -A2 "^jobs:" .github/workflows/ci.yml`
 
 Also verify the CI workflow actually runs on PRs targeting the default branch (`on.pull_request.branches` must include it), or the required check never fires.
 
-**Nested reusable workflows change the check name.** Adopting a nested reusable workflow (see `docs/ci-standards.md` — `ci-electron.yml` calls `ci-typescript.yml` as a sub-job) produces check names like `ci / typescript / validate` rather than a single flat job name. Update `required_status_checks[].context` to match via the PATCH flow below whenever a repo switches its CI to one of these standards, or the ruleset waits forever on a context that no longer reports.
+**Nested reusable workflows change the check name.** Adopting a nested reusable workflow (see `docs/ci-standards.md` — `ci-electron.yml` calls `ci-typescript.yml` as a sub-job) produces check names like `ci / typescript / validate` rather than a single flat job name. Update `required_status_checks[].context` to match via the update flow below whenever a repo switches its CI to one of these standards, or the ruleset waits forever on a context that no longer reports.
 
 **Multiple required checks:** the examples above assume one CI job gates merge. If a repo has separate jobs that should all be required (e.g. `lint`, `test`, `build` as independent jobs rather than steps in one job), add one entry per job to the `required_status_checks` array:
 
@@ -100,17 +101,49 @@ JSON
 
 `integration_id: 15368` is the GitHub Actions app — it pins the check to Actions so a differently-sourced check with the same name can't satisfy the rule. Keep it as-is.
 
+## Release-branch ruleset (`v*/main`)
+
+The second ruleset every repo on the version-branch flow gets. Same repo, separate ruleset, name `release-branches`:
+
+```sh
+gh api repos/tkforgeworks/<REPO>/rulesets --method POST --input - <<'JSON'
+{
+  "name": "release-branches",
+  "target": "branch",
+  "enforcement": "active",
+  "conditions": {
+    "ref_name": { "include": ["refs/heads/v*/main"], "exclude": [] }
+  },
+  "rules": [
+    { "type": "deletion" },
+    { "type": "non_fast_forward" }
+  ],
+  "bypass_actors": []
+}
+JSON
+```
+
+What it does and doesn't do, on purpose:
+
+- **Blocks** force-pushes and deletion of any `vX.Y.Z/main` — the two irreversible mistakes on a branch that holds weeks of merged work.
+- **Does not require a PR.** `rc-tag.js` / `bump-version.{ps1,sh}` push bump commits directly.
+- **Does not require a status check.** Per GitHub's own docs, with a required check "any commits must either be pushed to another branch and then merged or pushed directly to the protected branch" *after* the check has passed — a bump commit is new, so the push would be rejected with `Required status check "…" is expected`. Adding the check here would force every RC through a PR; if that is ever wanted, change the scripts to open PRs first, don't just add the rule. A red topic-PR merged into the release branch is therefore possible; it is caught at the release PR, where the default-branch ruleset does require the check.
+- No `include` fan-out needed: `refs/heads/v*/main` matches every release branch regardless of default-branch name.
+
+Apply it as soon as the first release branch exists (there is no "check must have reported" prerequisite — it has no checks). Verify with `gh api repos/tkforgeworks/<REPO>/rules/branches/v0.1.0%2Fmain` (URL-encode the slash).
+
 ## Updating an existing ruleset
 
-The command above is a `POST` (create) — re-running it against a repo that already has a ruleset named `main` will fail on the duplicate name rather than update it. To change a mirrored ruleset (new CI job name, added check, adjusted parameters):
+The commands above are `POST` (create) — re-running one against a repo that already has a ruleset of that name will fail on the duplicate name rather than update it. To change a mirrored ruleset (new CI job name, added check, adjusted parameters):
 
-1. Find the ruleset id: `gh api repos/tkforgeworks/<REPO>/rulesets` (look for `"name": "main"`, note its `"id"`)
-2. `PATCH` it with the full desired body (partial updates are not merged — send the complete rule set):
+1. Find the ruleset id: `gh api repos/tkforgeworks/<REPO>/rulesets` (look for `"name": "main"` or `"release-branches"`, note its `"id"`)
+2. `PUT` it with the full desired body (partial updates are not merged — send the complete rule set):
    ```sh
-   gh api repos/tkforgeworks/<REPO>/rulesets/<ID> --method PATCH --input - <<'JSON'
+   gh api repos/tkforgeworks/<REPO>/rulesets/<ID> --method PUT --input - <<'JSON'
    { ...same shape as the POST body... }
    JSON
    ```
+   The endpoint is `PUT`, **not `PATCH`** — `PATCH` returns `404 Not Found` on `/repos/{owner}/{repo}/rulesets/{id}` (verified 2026-08-28 adding `ci / ci` to lazy-sleeper-app's ruleset; `PUT` with the same body worked first time).
 3. Re-run the verification steps below to confirm the change took.
 
 ## Operational consequences to document for future repos
