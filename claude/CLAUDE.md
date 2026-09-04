@@ -304,7 +304,8 @@ line-by-line diff (git history already has that).
   handoff file deleted. Follow-on tickets created: LS-76 (lazy-sleeper-app
   switch to the org-hosted workflow + release-branch ruleset + RC to prove
   it), ANVL-141 and CGUI-95 (`'v*/main'` PR trigger + release-branch
-  ruleset in each repo). PRs #6 and #7 on this repo.
+  ruleset in each repo). PRs #6 and #8 on this repo (#7 was the same
+  branch, auto-closed when its stacked base was deleted).
 - **2026-09-03** — Promoted the Flutter release pipeline from lazy-sleeper-app
   per `HANDOFF-flutter-version-branch-flow.md` (items 5, 6, and the Flutter
   bits of 7): `release-flutter.yml` (header rewritten for the org repo,
