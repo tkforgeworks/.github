@@ -33,6 +33,12 @@ root free of it). Replace every <placeholder>. Delete sections that don't apply.
   comment "Actions taken" + commit hash and leave it for the human to verify.
 - Branch names: `<KEY>-N-short-topic` (or `vX.Y.Z/<topic>` on release branches
   for repos using the tagless release pipeline).
+- Releases (tagless pipeline): **never hand-edit the version or push tags.**
+  Electron repos: `npm run rc:<patch|minor|major>` / `npm run release:final`
+  (vendored `scripts/release/{rc-tag,release-tag}.js`). Flutter repos:
+  `scripts/release/bump-version.{ps1,sh} <rc|final>` on the `vX.Y.Z/main`
+  branch (the base version comes from the branch name). CI creates the tag
+  when it publishes.
 - Update this file as the last step of closing any ticket that changed
   conventions, architecture, or status.
 

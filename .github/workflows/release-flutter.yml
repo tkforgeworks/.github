@@ -1,0 +1,260 @@
+# TK ForgeWorks standard: tagless Flutter release pipeline. The Flutter twin
+# of release-electron.yml, job for job. Built and validated in
+# lazy-sleeper-app (LS-73; run 33223651283 published v0.1.0-rc.1 with a
+# Windows installer + zip and a keystore-signed APK), then promoted here
+# unchanged. Runs ci-flutter.yml as a nested reusable for its gate.
+#
+# Model: version bumps are ordinary commits made by scripts/release/
+# bump-version.{ps1,sh} (the pubspec adapter for rc-tag.js/release-tag.js;
+# vendor the pair into the caller's scripts/release/).
+# This workflow triggers on branch pushes, self-gates on whether the
+# version's tag already exists, and the tag is created server-side when the
+# GitHub release is published — so it works under a no-bypass ruleset. RC
+# prereleases cut from v*/main release branches; stable releases cut on
+# merge to the default branch.
+#
+# Version source: pubspec.yaml `version: X.Y.Z[-rc.N]+BUILD`. X.Y.Z[-rc.N]
+# names the tag and release; +BUILD is the Android versionCode and is
+# ignored here.
+#
+# Consume from a repo's release workflow:
+#
+#   name: Release
+#   on:
+#     push:
+#       branches: [main, 'v*/main']
+#   permissions:
+#     contents: write
+#   concurrency:
+#     group: release
+#     cancel-in-progress: false
+#   jobs:
+#     release:
+#       uses: tkforgeworks/.github/.github/workflows/release-flutter.yml@main
+#       with:
+#         ticket-prefix: LS
+#         flutter-version: '3.47.2'
+#       secrets: inherit
+#
+# Script contract (caller's scripts/release/): build-windows.ps1 producing
+# release/*.exe (+ optional *.zip) on windows-latest; build-android.sh
+# producing release/*.apk on ubuntu-latest, signed from android/key.properties
+# which this workflow writes from the ANDROID_KEYSTORE_* secrets. Release
+# notes come from release-notes.yml, which needs the JIRA_BASE_URL repo/org
+# variable for ticket linking.
+#
+# Immutable releases lock assets at publish time, so the release is created
+# as a draft, assets uploaded, then published via the API.
+
+name: Flutter Release
+
+on:
+  workflow_call:
+    inputs:
+      ticket-prefix:
+        description: 'Jira project key for release-notes ticket linking'
+        required: true
+        type: string
+      default-branch:
+        description: 'Branch that stable releases are cut from'
+        required: false
+        type: string
+        default: 'main'
+      flutter-version:
+        description: 'Flutter SDK version for subosito/flutter-action (pin it)'
+        required: true
+        type: string
+      flutter-channel:
+        required: false
+        type: string
+        default: 'stable'
+      java-version:
+        description: 'JDK for the Android Gradle build'
+        required: false
+        type: string
+        default: '17'
+      build-windows:
+        description: 'Build the Windows installer on windows-latest'
+        required: false
+        type: boolean
+        default: true
+      build-android:
+        description: 'Build the signed Android APK on ubuntu-latest'
+        required: false
+        type: boolean
+        default: true
+    secrets:
+      ANDROID_KEYSTORE_BASE64:
+        description: 'The upload keystore, base64-encoded (build-android only)'
+        required: false
+      ANDROID_KEYSTORE_PASSWORD:
+        description: 'Store and key password'
+        required: false
+      ANDROID_KEY_ALIAS:
+        description: 'Key alias in the keystore'
+        required: false
+
+permissions:
+  contents: write
+
+jobs:
+  check-release:
+    runs-on: ubuntu-latest
+    outputs:
+      should-release: ${{ steps.check.outputs.should-release }}
+      version: ${{ steps.check.outputs.version }}
+      is-prerelease: ${{ steps.check.outputs.is-prerelease }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: check
+        env:
+          DEFAULT_BRANCH: ${{ inputs.default-branch }}
+        run: |
+          FULL=$(sed -n 's/^version:[[:space:]]*//p' pubspec.yaml | tr -d '[:space:]')
+          VERSION="${FULL%%+*}"
+          TAG="v${VERSION}"
+          BRANCH="${{ github.ref_name }}"
+          IS_RC=false
+          if echo "$VERSION" | grep -qE '(rc|alpha|beta)'; then
+            IS_RC=true
+          fi
+          echo "pubspec version $FULL → tag $TAG (prerelease: $IS_RC) on $BRANCH"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists — skipping release"
+            echo "should-release=false" >> $GITHUB_OUTPUT
+          elif [ "$BRANCH" = "$DEFAULT_BRANCH" ] && [ "$IS_RC" = "true" ]; then
+            # An RC version should never merge to the default branch — run
+            # bump-version final on the release branch first.
+            echo "RC version $VERSION on $BRANCH — skipping release"
+            echo "should-release=false" >> $GITHUB_OUTPUT
+          elif [ "$BRANCH" != "$DEFAULT_BRANCH" ] && [ "$IS_RC" = "false" ]; then
+            # bump-version final pushes a stable version to the release branch
+            # before its PR merges; the stable release is cut on merge.
+            echo "Stable version $VERSION on $BRANCH — releasing on merge to $DEFAULT_BRANCH, skipping"
+            echo "should-release=false" >> $GITHUB_OUTPUT
+          else
+            echo "Tag $TAG does not exist — will release"
+            echo "should-release=true" >> $GITHUB_OUTPUT
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            echo "is-prerelease=$IS_RC" >> $GITHUB_OUTPUT
+          fi
+
+  release-notes:
+    if: needs.check-release.outputs.should-release == 'true'
+    needs: check-release
+    uses: tkforgeworks/.github/.github/workflows/release-notes.yml@main
+    with:
+      ticket-prefix: ${{ inputs.ticket-prefix }}
+      release-version: v${{ needs.check-release.outputs.version }}
+
+  # Gate: no release is cut if format, analyze or tests fail — the same
+  # check PRs run.
+  gate:
+    if: needs.check-release.outputs.should-release == 'true'
+    needs: check-release
+    uses: tkforgeworks/.github/.github/workflows/ci-flutter.yml@main
+    with:
+      flutter-version: ${{ inputs.flutter-version }}
+      flutter-channel: ${{ inputs.flutter-channel }}
+
+  build-windows:
+    if: needs.check-release.outputs.should-release == 'true' && inputs.build-windows
+    needs: [check-release, gate]
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ inputs.flutter-version }}
+          channel: ${{ inputs.flutter-channel }}
+          cache: true
+      # Inno Setup 6 and the VC++ toolchain/redist are on the windows-latest image.
+      - name: Build installer
+        shell: pwsh
+        run: ./scripts/release/build-windows.ps1
+      - uses: actions/upload-artifact@v7
+        with:
+          name: installers-windows
+          path: |
+            release/*.exe
+            release/*.zip
+          if-no-files-found: error
+
+  build-android:
+    if: needs.check-release.outputs.should-release == 'true' && inputs.build-android
+    needs: [check-release, gate]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: ${{ inputs.java-version }}
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ inputs.flutter-version }}
+          channel: ${{ inputs.flutter-channel }}
+          cache: true
+      - name: Write signing config from secrets
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ] || [ -z "$KEYSTORE_PASSWORD" ] || [ -z "$KEY_ALIAS" ]; then
+            echo "::error::ANDROID_KEYSTORE_BASE64 / ANDROID_KEYSTORE_PASSWORD / ANDROID_KEY_ALIAS secrets are required for build-android"
+            exit 1
+          fi
+          echo "$KEYSTORE_BASE64" | base64 -d > android/upload-keystore.jks
+          {
+            echo "storePassword=$KEYSTORE_PASSWORD"
+            echo "keyPassword=$KEYSTORE_PASSWORD"
+            echo "keyAlias=$KEY_ALIAS"
+            echo "storeFile=../upload-keystore.jks"
+          } > android/key.properties
+      - name: Build signed APK
+        run: bash scripts/release/build-android.sh
+      - uses: actions/upload-artifact@v7
+        with:
+          name: installers-android
+          path: release/*.apk
+          if-no-files-found: error
+
+  publish:
+    # always() so an intentionally skipped platform does not skip publishing;
+    # a failed build still blocks it.
+    if: >-
+      always() && needs.check-release.outputs.should-release == 'true' &&
+      needs.release-notes.result == 'success' &&
+      needs.build-windows.result != 'failure' && needs.build-windows.result != 'cancelled' &&
+      needs.build-android.result != 'failure' && needs.build-android.result != 'cancelled'
+    needs: [check-release, release-notes, build-windows, build-android]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: installers-*
+          path: release
+          merge-multiple: true
+
+      # Publishing creates the v{version} tag at the triggering commit.
+      - name: Create draft release with assets
+        id: draft
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: v${{ needs.check-release.outputs.version }}
+          target_commitish: ${{ github.sha }}
+          files: |
+            release/*.exe
+            release/*.zip
+            release/*.apk
+          body: ${{ needs.release-notes.outputs.body }}
+          draft: true
+          prerelease: ${{ needs.check-release.outputs.is-prerelease }}
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PATCH repos/${{ github.repository }}/releases/${{ steps.draft.outputs.id }} -F draft=false

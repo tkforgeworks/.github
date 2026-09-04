@@ -66,7 +66,7 @@ if (bumpType === 'final') {
   }
 }
 
-const branchName = `release/v${nextVersion}`
+const branchName = `v${nextVersion}/main`
 
 const currentBranch = git('rev-parse --abbrev-ref HEAD')
 if (currentBranch === DEFAULT_BRANCH) {

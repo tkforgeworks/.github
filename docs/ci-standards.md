@@ -158,15 +158,27 @@ upgrade/downgrade/upgrade round-trips — goes in `post-test-command`.
 The job is named `ci` so a repo whose ruleset already requires `ci` (as
 lazy-sleeper's does) migrates without a ruleset PATCH.
 
-## Flutter: `ci-flutter.yml` — stub
+## Flutter: `ci-flutter.yml`
 
-Written before any Flutter repo exists, so `lazy-sleeper-app`'s first story
-can adopt rather than hand-roll. Runs `flutter pub get`, `dart format
---set-exit-if-changed`, `flutter analyze`, `flutter test` via
-`subosito/flutter-action@v2`. No platform builds — those belong in a release
-workflow. **Treat every input default as provisional** until the first real
-run; in particular `flutter-version` (empty = latest stable) should be pinned
-once the project's SDK is chosen.
+Runs `flutter pub get`, `dart format --set-exit-if-changed`,
+`flutter analyze`, `flutter test` via `subosito/flutter-action@v2`. No
+platform builds — those live in `release-flutter.yml`. Job is named `ci`
+(ruleset context `ci / ci` when called from a caller job also named `ci`).
+
+Validated by `lazy-sleeper-app` (LS-39 PR #1, 2026-08-28): passed unchanged,
+~1m25s–2m05s on `ubuntu-latest` with `flutter-version: '3.47.2'`. Adopter
+notes:
+
+- **Pin `flutter-version`.** Empty means latest stable, which drifts.
+- `dart format` does **not** honour `analysis_options.yaml` excludes — every
+  `.dart` file in the repo (including any under `docs/`) must be formatted
+  or the format step fails.
+- `release-flutter.yml` calls this workflow as its `gate` job (nested
+  reusable, depth 3 counting `release-notes.yml`), so the PR check *is* the
+  release gate. Keep the `flutter-version` in a repo's `ci.yml` and
+  `release.yml` identical, or the release can gate on a different SDK than
+  the one the PR was checked with. Observed: ~1m25s as a PR check; the full
+  release run with both platform builds ~9 minutes.
 
 ## Agent Adoption Runbook
 
