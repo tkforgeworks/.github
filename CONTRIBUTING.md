@@ -25,6 +25,11 @@ guarantees of review turnaround.
   exists); everything else lands under *Changes* in the generated release
   notes. Don't leave the codebase half-finished in any single commit.
 - **Tests test behavior**, not implementation details.
+- **Licensing.** Code is Apache-2.0; by submitting a contribution you agree
+  it is licensed under the same terms (Apache-2.0 §5 — no separate CLA).
+  Image assets are all rights reserved and are not accepted as contributions
+  unless discussed first. See
+  [`docs/licensing.md`](https://github.com/tkforgeworks/.github/blob/main/docs/licensing.md).
 
 ## Conventions shared across repos
 
