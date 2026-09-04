@@ -46,6 +46,10 @@ root free of it). Replace every <placeholder>. Delete sections that don't apply.
   `scripts/release/bump-version.{ps1,sh} <rc|final>` on the `vX.Y.Z/main`
   branch (the base version comes from the branch name). CI creates the tag
   when it publishes.
+- License: **Apache-2.0** (`LICENSE` is the verbatim Apache text — never
+  edit it). Image assets (`.svg`/`.png`/etc.) are **all rights reserved** via
+  `NOTICE`. Manifest `license` field must say `Apache-2.0`. Standard:
+  `tkforgeworks/.github/docs/licensing.md`.
 - Update this file as the last step of closing any ticket that changed
   conventions, architecture, or status.
 

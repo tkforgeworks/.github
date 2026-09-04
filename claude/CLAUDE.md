@@ -229,6 +229,34 @@ before doing that work in either repo.
   `claude-settings.json` (commit-reminder hook, wording identical to anvil's),
   `CLAUDE.md` skeleton.
 
+### Licensing — `docs/licensing.md`, root `LICENSE` + `NOTICE`, `templates/NOTICE`, `scripts/add-license.sh`
+
+- Org standard decided 2026-09-03: **Apache-2.0 for code, image assets
+  (`.svg`/`.png`/`.jpg`/`.gif`/`.webp`/`.ico`/`.icns`) all rights reserved.**
+  Chosen over MIT for the patent grant, trademark exclusion (§6), and the
+  NOTICE mechanism (§4(d)) — the last is what carries the asset carve-out
+  downstream. Copyleft rejected: no problem to solve for hobby projects, and
+  GPL is awkward on the App Store for the Flutter app.
+- **`LICENSE` is verbatim** (canonical sha256
+  `cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30`,
+  fetched from apache.org). Never edit it — the ASF forbids it and GitHub's
+  `licensee` detection would flip the badge to "Other". All custom wording
+  (asset exclusion, names/marks) lives in `NOTICE`.
+- **GitHub does not inherit `LICENSE` from the `.github` repo** (community
+  health files exclude it), so every repo needs its own copy. Before this
+  change all 8 public repos had *no* license — legally "all rights reserved"
+  by default. `scripts/add-license.sh <repo>[:<base>]` opens one PR per repo
+  via `gh api` (branch `chore/apache-2-license`, subject `Add Apache-2.0
+  LICENSE and NOTICE`); skips repos with an existing LICENSE and empty
+  repos (robo-narc has no commits, so its `main` ref 404s). Repos on the release-branch flow
+  pass `repo:vX.Y.Z/main` as base. README "License" section and manifest
+  `license` fields are deliberate hand follow-ups, not scripted.
+- **`AetherGears_r1` is out of scope** — game art/audio/story get their own
+  decision when it goes public. User said so explicitly on 2026-09-03.
+- Copyright holder is written as "Tim Klimpel (TK ForgeWorks)" because TK
+  ForgeWorks is not a legal entity.
+- **Adopters:** `.github` (this repo). Rollout PRs not yet opened.
+
 ### Parked: brand repo & plugin marketplace
 
 - `docs/future-brand-and-plugins.md` — findings + proposal, not started.
@@ -288,6 +316,17 @@ before doing that work in either repo.
 
 Newest first. One entry per notable change — what changed and why, not a
 line-by-line diff (git history already has that).
+
+- **2026-09-03** — Org licensing standard. User asked for a comparison of
+  open-source licenses for an "org standard"; scan found zero licensed
+  public repos and that GitHub won't inherit `LICENSE` from `.github`. User
+  chose Apache-2.0 and asked for image assets (svg/png) to be all rights
+  reserved. Added verbatim `LICENSE` + `NOTICE` at root, `templates/NOTICE`,
+  `docs/licensing.md` (rationale, per-repo checklist, README snippet,
+  manifest fields, rollout runbook), `scripts/add-license.sh` (gh-api PR
+  opener), README "Licensing" section + License footer, CONTRIBUTING
+  inbound=outbound line (§5, no CLA), `templates/CLAUDE.md` license line.
+  AetherGears explicitly excluded until it goes public.
 
 - **2026-09-03** — Branching model + CI envelope + ruleset fixes (handoff
   items 1–4, second PR). New `docs/branching-and-release.md` makes

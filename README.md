@@ -94,7 +94,13 @@ Adopters: `lazy-sleeper-app` (source, LS-73 PR #14; validated end to end by `v0.
 
 Files at this repo's root / `.github/` are **inherited by every public org repo that lacks its own**: `SECURITY.md`, `CONTRIBUTING.md`, `.github/PULL_REQUEST_TEMPLATE.md`, `.github/ISSUE_TEMPLATE/`. All are deliberately short stubs — refine as needed.
 
-Files GitHub does **not** inherit live under [`templates/`](templates/) and must be copied into each repo: `dependabot.yml` (grouped weekly, delete unused ecosystems), `CODEOWNERS`, `.gitattributes` (LF/CRLF policy for Windows + WSL, promoted from homelab), `.editorconfig`, `claude-settings.json` (the "CLAUDE.md CHECK REQUIRED" pre-commit hook used in anvil/cheesy-scribe/lazy-sleeper-app), and `CLAUDE.md` (skeleton with the org-standard process sections; convention is `<repo>/.claude/CLAUDE.md`).
+Files GitHub does **not** inherit live under [`templates/`](templates/) and must be copied into each repo: `dependabot.yml` (grouped weekly, delete unused ecosystems), `CODEOWNERS`, `.gitattributes` (LF/CRLF policy for Windows + WSL, promoted from homelab), `.editorconfig`, `claude-settings.json` (the "CLAUDE.md CHECK REQUIRED" pre-commit hook used in anvil/cheesy-scribe/lazy-sleeper-app), `CLAUDE.md` (skeleton with the org-standard process sections; convention is `<repo>/.claude/CLAUDE.md`), and `NOTICE` (see Licensing below).
+
+### Licensing
+
+See [`docs/licensing.md`](docs/licensing.md). **Apache-2.0 for code, all rights reserved for image assets** (logos, icons, illustrations, screenshots — every `.svg`/`.png`/etc.). GitHub does *not* inherit `LICENSE` from this repo, so each repo carries its own copy: the root [`LICENSE`](LICENSE) here byte-for-byte (verbatim Apache text, or GitHub's license detection breaks) plus [`templates/NOTICE`](templates/NOTICE) with the repo name and year filled in — the asset carve-out lives in `NOTICE`, which Apache-2.0 §4(d) requires redistributors to preserve. `scripts/add-license.sh <repo>[:<base-branch>] ...` opens the PR per repo via `gh api`. `AetherGears_r1` is explicitly out of scope until it goes public.
+
+Adopters: `.github` (this repo). Rollout PRs to the other public repos pending.
 
 ### Parked: brand repo & Claude plugin marketplace
 
@@ -103,3 +109,9 @@ See [`docs/future-brand-and-plugins.md`](docs/future-brand-and-plugins.md) — f
 ### Node 20 Actions runtime deprecation
 
 See [`docs/node20-action-deprecation.md`](docs/node20-action-deprecation.md) — GitHub is removing the Node 20 Actions runtime; `actions/checkout`/`actions/setup-node` need v5+ and `softprops/action-gh-release` needs v3 to stay on Node 24. Fixed here in `release-notes.yml`, `ci-typescript.yml`, and `ci-electron.yml` (bumped to the latest stable majors). anvil's and claude-observability-gui's own `ci.yml`/`release.yml` pin these actions independently and still need the same bump directly in each repo — see the doc for the exact per-repo version list.
+
+## License
+
+Apache-2.0 — see [`LICENSE`](LICENSE). Image assets (logos, icons,
+illustrations, screenshots — including everything under `profile/assets/`)
+are **not** covered and are all rights reserved; see [`NOTICE`](NOTICE).
