@@ -301,7 +301,10 @@ line-by-line diff (git history already has that).
   check rejects direct pushes of unchecked commits, which would break every
   `rc`/`final` bump — shipped the ruleset with only `non_fast_forward` +
   `deletion` and documented why. CONTRIBUTING/templates/CLAUDE.md updated;
-  handoff file deleted.
+  handoff file deleted. Follow-on tickets created: LS-76 (lazy-sleeper-app
+  switch to the org-hosted workflow + release-branch ruleset + RC to prove
+  it), ANVL-141 and CGUI-95 (`'v*/main'` PR trigger + release-branch
+  ruleset in each repo). PRs #6 and #7 on this repo.
 - **2026-09-03** — Promoted the Flutter release pipeline from lazy-sleeper-app
   per `HANDOFF-flutter-version-branch-flow.md` (items 5, 6, and the Flutter
   bits of 7): `release-flutter.yml` (header rewritten for the org repo,
