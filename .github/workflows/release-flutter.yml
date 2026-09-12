@@ -39,9 +39,11 @@
 # Script contract (caller's scripts/release/): build-windows.ps1 producing
 # release/*.exe (+ optional *.zip) on windows-latest; build-android.sh
 # producing release/*.apk on ubuntu-latest, signed from android/key.properties
-# which this workflow writes from the ANDROID_KEYSTORE_* secrets. Release
-# notes come from release-notes.yml, which needs the JIRA_BASE_URL repo/org
-# variable for ticket linking.
+# which this workflow writes from the ANDROID_KEYSTORE_* secrets (the script
+# sees ANDROID_SIGNING=release, or =debug when the caller opted into
+# `android-signing: optional` for a keystore-less dry run). Release notes come
+# from release-notes.yml, which needs the JIRA_BASE_URL repo/org variable for
+# ticket linking.
 #
 # Immutable releases lock assets at publish time, so the release is created
 # as a draft, assets uploaded, then published via the API.
@@ -83,6 +85,18 @@ on:
         required: false
         type: boolean
         default: true
+      android-signing:
+        description: >-
+          'required' (default) fails build-android when the ANDROID_KEYSTORE_*
+          secrets are missing. 'optional' lets a repo dry-run the pipeline
+          before its upload keystore exists: the APK is built without
+          android/key.properties (debug-signed by the Flutter template's
+          fallback) and ANDROID_SIGNING=debug is exported for
+          build-android.sh to label the artifact. Never ship a stable release
+          this way.
+        required: false
+        type: string
+        default: 'required'
     secrets:
       ANDROID_KEYSTORE_BASE64:
         description: 'The upload keystore, base64-encoded (build-android only)'
@@ -202,11 +216,18 @@ jobs:
           KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_SIGNING_INPUT: ${{ inputs.android-signing }}
         run: |
           if [ -z "$KEYSTORE_BASE64" ] || [ -z "$KEYSTORE_PASSWORD" ] || [ -z "$KEY_ALIAS" ]; then
-            echo "::error::ANDROID_KEYSTORE_BASE64 / ANDROID_KEYSTORE_PASSWORD / ANDROID_KEY_ALIAS secrets are required for build-android"
+            if [ "$ANDROID_SIGNING_INPUT" = "optional" ]; then
+              echo "::warning::ANDROID_KEYSTORE_* secrets are not set and android-signing is 'optional' — building a debug-signed APK (pipeline dry run, not for distribution)"
+              echo "ANDROID_SIGNING=debug" >> "$GITHUB_ENV"
+              exit 0
+            fi
+            echo "::error::ANDROID_KEYSTORE_BASE64 / ANDROID_KEYSTORE_PASSWORD / ANDROID_KEY_ALIAS secrets are required for build-android (set android-signing: optional for a keystore-less dry run)"
             exit 1
           fi
+          echo "ANDROID_SIGNING=release" >> "$GITHUB_ENV"
           echo "$KEYSTORE_BASE64" | base64 -d > android/upload-keystore.jks
           {
             echo "storePassword=$KEYSTORE_PASSWORD"
