@@ -22,7 +22,12 @@ The name's my initials plus a healthy dose of romanticizing the single-person wo
 | Repo | What it is |
 |---|---|
 | **[anvil](https://github.com/tkforgeworks/anvil)** | An RPG data-management tool for classes, items, recipes, NPCs — built because spreadsheets stopped cutting it. |
-| **[claude-observability-gui](https://github.com/tkforgeworks/claude-observability-gui)** | A desktop usage-tracking tool for Claude AI, because I wanted to *see* the number go up. |
+| **[lazy-sleeper](https://github.com/tkforgeworks/lazy-sleeper)** | A draft-day and in-season assistant for Sleeper fantasy football leagues — Python/FastAPI backend that answers "who do I take right now, and why?" from your league's exact scoring. |
+| **[lazy-sleeper-app](https://github.com/tkforgeworks/lazy-sleeper-app)** | The Flutter client for lazy-sleeper: a big board and a draft-night command center with pick clock, recommendations, and alerts. It never submits a pick — that stays in Sleeper. |
+| **[cheesy-scribe](https://github.com/tkforgeworks/cheesy-scribe)** | A local-first Android cheese-tasting journal, modeled on the 33Books tasting notebooks. Pre-release, but real code this time. |
+| **[robo-narc](https://github.com/tkforgeworks/robo-narc)** | A Godot toy game where you're a bus-mounted enforcement camera snapping plates of bus-lane blockers and double-parkers, inspired by NYC MTA's ACE program. |
+| **[claude-observability-gui](https://github.com/tkforgeworks/claude-observability-gui)** | COG, a local-first desktop tracker for Claude Code, Claude Desktop, and claude.ai usage, because I wanted to *see* the number go up. |
+| **[TKForgeWorks_website](https://github.com/tkforgeworks/TKForgeWorks_website)** | The source for tkforgeworks.com — Next.js static export with markdown content, deployed to Cloudflare Pages. |
 | **[.github](https://github.com/tkforgeworks/.github)** | Shared CI, branch-protection, and release-notes standards, so every repo doesn't reinvent the same YAML slightly worse. |
 
 Everything else — including an action RPG about corporate greed that seemed like a reasonable first game project until I actually started making it — is still cooking privately. Ask me about it anyway.
