@@ -187,7 +187,8 @@ before doing that work in either repo.
   `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`.
 - Caller script contract: `scripts/release/build-windows.ps1` →
   `release/*.exe` (+`*.zip`); `scripts/release/build-android.sh` →
-  `release/*.apk`; `release/` gitignored.
+  `release/*.apk` (+ optional `release/*.aab`, the Google Play bundle,
+  uploaded and published next to the APK); `release/` gitignored.
 - `bump-version.{ps1,sh}` — standalone pubspec adapter (Flutter repos don't
   need Node). CLI is `rc` | `final` [`X.Y.Z`]: **base version comes from the
   `vX.Y.Z/main` branch name**, since pubspec carries the upcoming version
@@ -322,6 +323,10 @@ before doing that work in either repo.
 Newest first. One entry per notable change — what changed and why, not a
 line-by-line diff (git history already has that).
 
+- **2026-09-26** — `release-flutter.yml` uploads and publishes
+  `release/*.aab` alongside the APK when the caller's `build-android.sh`
+  emits one (cheesy-scribe CHEESE-35, for the Play Console internal track).
+  Optional, so APK-only callers (lazy-sleeper-app) are unaffected.
 - **2026-09-03** — Org licensing standard. User asked for a comparison of
   open-source licenses for an "org standard"; scan found zero licensed
   public repos and that GitHub won't inherit `LICENSE` from `.github`. User

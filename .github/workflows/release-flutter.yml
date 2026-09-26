@@ -38,7 +38,8 @@
 #
 # Script contract (caller's scripts/release/): build-windows.ps1 producing
 # release/*.exe (+ optional *.zip) on windows-latest; build-android.sh
-# producing release/*.apk on ubuntu-latest, signed from android/key.properties
+# producing release/*.apk (+ optional release/*.aab, the Play Store bundle) on
+# ubuntu-latest, signed from android/key.properties
 # which this workflow writes from the ANDROID_KEYSTORE_* secrets (the script
 # sees ANDROID_SIGNING=release, or =debug when the caller opted into
 # `android-signing: optional` for a keystore-less dry run). Release notes come
@@ -235,12 +236,16 @@ jobs:
             echo "keyAlias=$KEY_ALIAS"
             echo "storeFile=../upload-keystore.jks"
           } > android/key.properties
-      - name: Build signed APK
+      - name: Build signed APK (+ AAB)
         run: bash scripts/release/build-android.sh
+      # The AAB is optional: callers that ship to Google Play emit one next to
+      # the APK; the rest only produce the APK.
       - uses: actions/upload-artifact@v7
         with:
           name: installers-android
-          path: release/*.apk
+          path: |
+            release/*.apk
+            release/*.aab
           if-no-files-found: error
 
   publish:
@@ -271,6 +276,7 @@ jobs:
             release/*.exe
             release/*.zip
             release/*.apk
+            release/*.aab
           body: ${{ needs.release-notes.outputs.body }}
           draft: true
           prerelease: ${{ needs.check-release.outputs.is-prerelease }}
