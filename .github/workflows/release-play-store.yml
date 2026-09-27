@@ -1,0 +1,131 @@
+# TK ForgeWorks standard: push a published GitHub release's Android App
+# Bundle to a Google Play Console track. Deliberately separate from
+# release-flutter.yml: that workflow builds and publishes the GitHub release,
+# this one only distributes it, so a Play failure shows up as its own job and
+# never blocks (or is mistaken for) the release itself. Re-run this job alone
+# to retry an upload.
+#
+# Input is a tag, not a build: the .aab and the "What's new" text are read
+# from the GitHub release, so it works for any toolchain that attaches an
+# .aab to its release. Debug-signed (-debugsigned) bundles are never uploaded.
+#
+# Auth is keyless Workload Identity Federation: GitHub's OIDC token is
+# exchanged for a short-lived token of a Google Cloud service account that is
+# invited in the Play Console with release rights on the app. No JSON key is
+# stored anywhere (new Google Cloud setups block key creation by default).
+#
+# Prerequisites per app: the first bundle is uploaded by hand in the Play
+# Console; every later upload needs a higher versionCode (Flutter: pubspec
+# +BUILD, which bump-version raises). Google Cloud: Google Play Android
+# Developer API + IAM Service Account Credentials API enabled, a workload
+# identity pool with a GitHub OIDC provider limited to the repo, and
+# roles/iam.workloadIdentityUser on the service account for that repo's
+# principalSet.
+#
+# Consume from a repo's release workflow, after the release job:
+#
+#   jobs:
+#     release:
+#       uses: tkforgeworks/.github/.github/workflows/release-flutter.yml@main
+#       ...
+#     play-store:
+#       needs: release
+#       if: needs.release.outputs.released == 'true'
+#       permissions:
+#         contents: read
+#         id-token: write
+#       uses: tkforgeworks/.github/.github/workflows/release-play-store.yml@main
+#       with:
+#         tag: v${{ needs.release.outputs.version }}
+#         package-name: com.tkforgeworks.example
+#         track: internal
+#         workload-identity-provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+#         service-account: ${{ vars.PLAY_SERVICE_ACCOUNT }}
+
+name: Play Store Release
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: 'Published GitHub release whose .aab is uploaded (e.g. v1.2.0-rc.1)'
+        required: true
+        type: string
+      package-name:
+        description: 'Android application id'
+        required: true
+        type: string
+      track:
+        description: 'Play Console track: internal, alpha, beta or production'
+        required: false
+        type: string
+        default: 'internal'
+      release-status:
+        description: >-
+          'completed' (default) rolls the release out to the track's testers
+          at once; 'draft' leaves it in the Play Console to roll out by hand
+          (required while the app itself is still a draft in Play).
+        required: false
+        type: string
+        default: 'completed'
+      workload-identity-provider:
+        description: 'projects/NUMBER/locations/global/workloadIdentityPools/POOL/providers/PROVIDER'
+        required: true
+        type: string
+      service-account:
+        description: 'Email of the service account invited in the Play Console'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch bundle and release notes
+        id: prep
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          gh release download "$TAG" -R "$GITHUB_REPOSITORY" --pattern '*.aab' --dir release
+          shopt -s nullglob
+          bundles=()
+          for f in release/*.aab; do
+            case "$f" in *-debugsigned*) ;; *) bundles+=("$f") ;; esac
+          done
+          if [ "${#bundles[@]}" -ne 1 ]; then
+            echo "::error::Expected exactly one release-signed .aab on $TAG, found ${#bundles[@]} (debug-signed bundles are never uploaded)"
+            exit 1
+          fi
+          echo "aab=${bundles[0]}" >> "$GITHUB_OUTPUT"
+          # Play shows plain text, max 500 characters: keep the bullet lines,
+          # drop the ticket links, trim to fit.
+          mkdir -p whatsnew
+          gh release view "$TAG" -R "$GITHUB_REPOSITORY" --json body --jq .body \
+            | { grep -E '^[-*] ' || true; } \
+            | sed -E 's/^[*] /- /; s/\[([^]]*)\]\([^)]*\)/\1/g' \
+            | head -c 500 > whatsnew/whatsnew-en-US
+          [ -s whatsnew/whatsnew-en-US ] || echo "Bug fixes and improvements." > whatsnew/whatsnew-en-US
+          echo "Uploading ${bundles[0]}; What's new:"
+          cat whatsnew/whatsnew-en-US
+
+      - id: auth
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ inputs.workload-identity-provider }}
+          service_account: ${{ inputs.service-account }}
+          create_credentials_file: true
+
+      - uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJson: ${{ steps.auth.outputs.credentials_file_path }}
+          packageName: ${{ inputs.package-name }}
+          releaseFiles: ${{ steps.prep.outputs.aab }}
+          releaseName: ${{ inputs.tag }}
+          track: ${{ inputs.track }}
+          status: ${{ inputs.release-status }}
+          whatsNewDirectory: whatsnew
