@@ -126,6 +126,6 @@ jobs:
           packageName: ${{ inputs.package-name }}
           releaseFiles: ${{ steps.prep.outputs.aab }}
           releaseName: ${{ inputs.tag }}
-          track: ${{ inputs.track }}
+          tracks: ${{ inputs.track }}
           status: ${{ inputs.release-status }}
           whatsNewDirectory: whatsnew
