@@ -98,6 +98,15 @@ on:
         required: false
         type: string
         default: 'required'
+    # For follow-on jobs in the caller, e.g. release-play-store.yml:
+    # `if: needs.release.outputs.released == 'true'`.
+    outputs:
+      released:
+        description: "'true' when this run published a GitHub release"
+        value: ${{ jobs.publish.outputs.released }}
+      version:
+        description: 'The released version without the v prefix (empty when nothing was released)'
+        value: ${{ jobs.check-release.outputs.version }}
     secrets:
       ANDROID_KEYSTORE_BASE64:
         description: 'The upload keystore, base64-encoded (build-android only)'
@@ -258,6 +267,8 @@ jobs:
       needs.build-android.result != 'failure' && needs.build-android.result != 'cancelled'
     needs: [check-release, release-notes, build-windows, build-android]
     runs-on: ubuntu-latest
+    outputs:
+      released: ${{ steps.published.outputs.released }}
     steps:
       - uses: actions/download-artifact@v8
         with:
@@ -282,6 +293,9 @@ jobs:
           prerelease: ${{ needs.check-release.outputs.is-prerelease }}
 
       - name: Publish release
+        id: published
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh api -X PATCH repos/${{ github.repository }}/releases/${{ steps.draft.outputs.id }} -F draft=false
+        run: |
+          gh api -X PATCH repos/${{ github.repository }}/releases/${{ steps.draft.outputs.id }} -F draft=false
+          echo "released=true" >> "$GITHUB_OUTPUT"
