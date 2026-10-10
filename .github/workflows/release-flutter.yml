@@ -263,13 +263,17 @@ jobs:
 
   publish:
     # always() so an intentionally skipped platform does not skip publishing;
-    # a failed build still blocks it.
+    # a failed build still blocks it. The gate is checked here too: a build
+    # whose gate failed is "skipped", not "failed", so without this a red gate
+    # would still publish (and a caller with both builds off has no build to
+    # hold the release back at all).
     if: >-
       always() && needs.check-release.outputs.should-release == 'true' &&
       needs.release-notes.result == 'success' &&
+      needs.gate.result == 'success' &&
       needs.build-windows.result != 'failure' && needs.build-windows.result != 'cancelled' &&
       needs.build-android.result != 'failure' && needs.build-android.result != 'cancelled'
-    needs: [check-release, release-notes, build-windows, build-android]
+    needs: [check-release, release-notes, gate, build-windows, build-android]
     runs-on: ubuntu-latest
     outputs:
       released: ${{ steps.published.outputs.released }}

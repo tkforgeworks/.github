@@ -325,6 +325,13 @@ before doing that work in either repo.
 Newest first. One entry per notable change — what changed and why, not a
 line-by-line diff (git history already has that).
 
+- **2026-10-10** — `release-flutter.yml`: `publish` now needs `gate` and
+  requires it to have succeeded. Found while adopting the pipeline in
+  forge-ui with both builds off: nothing tied publishing to the gate, and
+  for callers with a build, a failed gate leaves the build "skipped", which
+  the `always()` condition let through. Read from the workflow, not seen in
+  a run. `release-electron.yml` is unaffected (its `publish` has no
+  `always()`).
 - **2026-10-10** — `ticket-prefix` is optional in `release-flutter.yml` and
   `release-electron.yml` (it already was in `release-notes.yml`). A repo
   with no Jira project (forge-ui, forge-core) leaves it out and gets notes
