@@ -181,7 +181,8 @@ before doing that work in either repo.
   `release-notes` + `gate` (`uses: ci-flutter.yml`) → `build-windows` /
   `build-android` → `publish` (`if: always()` so a platform switched off by
   input doesn't skip publishing; a failed one still blocks).
-- Inputs: `ticket-prefix`, `flutter-version` (required), `default-branch`,
+- Inputs: `flutter-version` (required), `ticket-prefix` (optional; omit in a
+  repo with no Jira project), `default-branch`,
   `flutter-channel`, `java-version`, `build-windows`, `build-android`.
   Secrets (`required: false`, caller passes `secrets: inherit`):
   `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`.
@@ -207,7 +208,8 @@ before doing that work in either repo.
   (typecheck/test) → `build` matrix over `runs-on-json` (upload-artifact@v7)
   → `publish` (download-artifact@v8 merge, draft release via
   action-gh-release@v3, then `gh api` PATCH draft=false).
-- Inputs: `ticket-prefix` (required), `default-branch`, `node-version`,
+- Inputs: `ticket-prefix` (optional; omit in a repo with no Jira project),
+  `default-branch`, `node-version`,
   `runs-on-json`, `dist-command`, `build-env-json`.
 - Script contract: `typecheck`, `test`, `build`, `dist`; `rebuild` optional.
 - `scripts/release/rc-tag.js`, `release-tag.js` — canonical copies of COG's
@@ -323,6 +325,11 @@ before doing that work in either repo.
 Newest first. One entry per notable change — what changed and why, not a
 line-by-line diff (git history already has that).
 
+- **2026-10-10** — `ticket-prefix` is optional in `release-flutter.yml` and
+  `release-electron.yml` (it already was in `release-notes.yml`). A repo
+  with no Jira project (forge-ui, forge-core) leaves it out and gets notes
+  that are the plain commit subjects; `generate-release-notes.js` already
+  handled an empty prefix. Existing callers pass a key and are unaffected.
 - **2026-09-26** — `release-flutter.yml` uploads and publishes
   `release/*.aab` alongside the APK when the caller's `build-android.sh`
   emits one (cheesy-scribe CHEESE-35, for the Play Console internal track).
