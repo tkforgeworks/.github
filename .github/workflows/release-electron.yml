@@ -40,9 +40,13 @@ on:
   workflow_call:
     inputs:
       ticket-prefix:
-        description: 'Jira project key for release-notes ticket linking'
-        required: true
+        description: >-
+          Jira project key for release-notes ticket linking. Leave it out in a
+          repo with no Jira project: the notes are then the plain commit
+          subjects, with nothing linked.
+        required: false
         type: string
+        default: ''
       default-branch:
         description: 'Branch that stable releases are cut from'
         required: false
