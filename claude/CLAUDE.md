@@ -71,7 +71,7 @@ Requires a `JIRA_BASE_URL` repo/org variable (e.g.
 is commit-subject discipline: subjects become changelog lines.
 
 **Adopters:** `claude-observability-gui` (tag-push releases), `anvil`
-(push-to-master releases, pattern originated here — passes `release-version`
+(push-to-main releases, pattern originated here — passes `release-version`
 explicitly).
 
 ### Branch protection (repository ruleset)
@@ -89,7 +89,8 @@ explicitly).
 - Second ruleset `release-branches` on `refs/heads/v*/main`: deletion +
   non-fast-forward only. Replication command in the same doc.
 
-Source of truth: `tkforgeworks/anvil` (ruleset id 16447467, "master").
+Source of truth: `tkforgeworks/anvil` (ruleset id 16447467, "main" — named
+"master" until anvil's default branch was renamed on 2026-10-11, ANVL-145).
 **Adopters:** `claude-observability-gui` (ruleset id 20203739, "main",
 created 2026-08-01); `lazy-sleeper-app` (ruleset id 21023856, "main",
 required check `ci / ci`).
@@ -325,6 +326,16 @@ before doing that work in either repo.
 Newest first. One entry per notable change — what changed and why, not a
 line-by-line diff (git history already has that).
 
+- **2026-10-11** — anvil's default branch renamed `master` → `main`
+  (ANVL-145), so every tkforgeworks repo is now on `main`. Updated the
+  places that cited anvil as the `master` example (`README.md`, this file,
+  `docs/branch-protection-ruleset.md`, the anvil runbook in
+  `docs/ci-standards.md`) and added a "Renaming a default branch under the
+  ruleset" section to the ruleset doc as a reference for any later rename:
+  GitHub's rename API is not blocked by the `deletion` rule, so the ruleset
+  never had to be disabled. The replication JSON still includes
+  `refs/heads/master`; left as is, since trimming it is a standards change
+  rather than a doc correction.
 - **2026-10-10** — `release-flutter.yml`: `publish` now needs `gate` and
   requires it to have succeeded. Found while adopting the pipeline in
   forge-ui with both builds off: nothing tied publishing to the gate, and
