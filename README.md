@@ -33,7 +33,7 @@ jobs:
 
 Set a `JIRA_BASE_URL` repo (or org) variable, e.g. `https://tkforgeworks.atlassian.net/browse`. Commit-subject discipline is the contract: subjects become changelog lines, and `Fix ...` prefixes drive the Bug Fixes section.
 
-Adopters: `claude-observability-gui` (tag-push releases), pattern originated in `anvil` (push-to-master releases — pass `release-version` explicitly there).
+Adopters: `claude-observability-gui` (tag-push releases), pattern originated in `anvil` (push-to-main releases — pass `release-version` explicitly there).
 
 ### Branch protection (repository ruleset)
 

@@ -229,9 +229,9 @@ steps below assume that context.
 
    on:
      push:
-       branches-ignore: [master]
+       branches-ignore: [main]
      pull_request:
-       branches: [master, 'v*/main']
+       branches: [main, 'v*/main']
 
    concurrency:
      group: ci-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.number) || github.ref }}
@@ -256,7 +256,7 @@ steps below assume that context.
    section is new: `quick`
    runs on every topic-branch push — lint/typecheck/test/audit/build only,
    on `ci-typescript.yml`'s default `ubuntu-latest` — while `full` only runs
-   on PRs targeting `master` and adds electronegativity/rebuild/packaging on
+   on PRs targeting `main` and adds electronegativity/rebuild/packaging on
    `ci-electron.yml`'s default `windows-latest`. Neither job needs an
    explicit `runs-on` override. `build-env-json` goes on both — both run
    `npm run build`, and both need `VITE_TELEMETRY_ENABLED` for it to behave

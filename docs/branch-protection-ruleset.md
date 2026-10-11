@@ -1,6 +1,6 @@
 # TK ForgeWorks Branch Protection Standard (Repository Ruleset)
 
-Source of truth: `tkforgeworks/anvil` ruleset id 16447467 ("master"), read 2026-08-01.
+Source of truth: `tkforgeworks/anvil` ruleset id 16447467 ("main"; named "master" until anvil's default branch was renamed on 2026-10-11, ANVL-145), read 2026-08-01.
 First mirrored to: `tkforgeworks/claude-observability-gui` ruleset id 20203739 ("main"), created 2026-08-01.
 
 ## Mechanism
@@ -20,7 +20,7 @@ Protection is implemented as a **repository ruleset** (`POST /repos/{owner}/{rep
 | `bypass_actors` | `[]` (empty) | Nobody can bypass, including admins (`current_user_can_bypass: never`) |
 | `enforcement` | `active` | Live immediately |
 
-Ref condition: `include: ["refs/heads/master", "refs/heads/main"]`, `exclude: []` — covers either default-branch name so the same ruleset JSON works in repos that use `master` (anvil) or `main` (claude-observability-gui). **New repos should trim this to their actual default branch name** rather than cargo-culting both — including a branch name that doesn't exist is harmless, but it's noise, and if a repo's default branch is neither `main` nor `master` (e.g. `develop`, `trunk`), the ruleset silently protects nothing until the include list is corrected.
+Ref condition: `include: ["refs/heads/master", "refs/heads/main"]`, `exclude: []` — covers either default-branch name so the same ruleset JSON works in repos that use `master` or `main`. (anvil used `master` until 2026-10-11; every tkforgeworks repo's default branch is now `main`, and anvil's own ruleset is trimmed to `refs/heads/main`.) **New repos should trim this to their actual default branch name** rather than cargo-culting both — including a branch name that doesn't exist is harmless, but it's noise, and if a repo's default branch is neither `main` nor `master` (e.g. `develop`, `trunk`), the ruleset silently protects nothing until the include list is corrected.
 
 Release branches (`vX.Y.Z/main`) get a **second, lighter ruleset** (below): no force-push, no deletion, and deliberately *no* PR rule and *no* required check, because the release scripts push version-bump commits straight to the release branch and a required check rejects any direct push whose commit hasn't already passed it. The branching model and the reasoning live in `docs/branching-and-release.md`.
 
@@ -152,6 +152,22 @@ The commands above are `POST` (create) — re-running one against a repo that al
 2. **Version-bump flow changes:** `npm version` + `git push --follow-tags` from the default branch no longer works as a direct push. Bump on the release branch (or a PR branch), merge via PR, then push the tag (tag pushes are unaffected — the ruleset targets branches).
 3. **Strict up-to-date policy:** if the default branch moves after a PR's last CI run, the PR must be updated (merge/rebase the base in) before merging.
 4. **Admins cannot bypass.** Emergency changes require editing the ruleset (set `enforcement: "disabled"`, act, re-enable) — deliberate friction.
+
+## Renaming a default branch under the ruleset
+
+Done once so far: anvil `master` → `main` on 2026-10-11 (ANVL-145, anvil PR #25). The order that worked:
+
+1. **Check the ruleset's `include` list contains the new name** (`refs/heads/main`) before renaming, or the renamed branch is unprotected until it is added. Anvil's already listed both names.
+2. **Rename with GitHub's rename API**, not by pushing a new branch:
+   ```sh
+   gh api -X POST repos/tkforgeworks/<REPO>/branches/<OLD>/rename -f new_name=main
+   ```
+   The `deletion` rule does **not** block a rename, even with no bypass actors — the ruleset stayed `active` throughout and did not need the disable/re-enable escape hatch. Anvil had no open PRs at the time, so PR retargeting was not exercised.
+3. **Fix up each local clone:** `git branch -m <OLD> main && git fetch origin --prune && git branch -u origin/main main && git remote set-head origin -a`.
+4. **`PUT` the ruleset** (see "Updating an existing ruleset"): trim `include` to the new name and rename the ruleset to match. Read the rules back and diff them against the pre-change body to confirm nothing else moved.
+5. **Update the repo's own references in a topic PR into the release branch**, not into the default branch: the CI trigger filters, the release workflow's push trigger **and** its branch gates in the same commit (changing only the trigger makes the default branch look like a version branch, so an RC version landing there would publish), the release scripts' PR base, and the repo's `CLAUDE.md`.
+
+Until that PR reaches the default branch through the next release PR, the workflow files on the default branch still name the old branch. For anvil that means pushes to `main` do not trigger `release.yml` in the meantime, which is fine because nothing is waiting to release. Not yet observed end to end: anvil's 0.1.6 release PR will be the first run of `validate` and the release against `main`.
 
 ## Verification
 
