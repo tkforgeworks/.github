@@ -37,6 +37,7 @@ The `required_status_checks[].context` must equal the repo's CI **job name** (jo
 | anvil | `validate` |
 | claude-observability-gui | `typecheck-and-test` |
 | lazy-sleeper-app | `ci / ci` (caller job `ci` → reusable job `ci`) |
+| cheesy-scribe | `ci / ci` (caller job `ci` → reusable job `ci`); rulesets 20916528 (`main`) and 22367582 (`release-branches`) |
 
 A wrong context blocks every PR forever (the required check never reports). Verify with:
 `grep -A2 "^jobs:" .github/workflows/ci.yml`

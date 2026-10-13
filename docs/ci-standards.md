@@ -179,8 +179,9 @@ platform builds — those live in `release-flutter.yml`. Job is named `ci`
 (ruleset context `ci / ci` when called from a caller job also named `ci`).
 
 Validated by `lazy-sleeper-app` (LS-39 PR #1, 2026-08-28): passed unchanged,
-~1m25s–2m05s on `ubuntu-latest` with `flutter-version: '3.47.2'`. Adopter
-notes:
+~1m25s–2m05s on `ubuntu-latest` with `flutter-version: '3.47.2'`. Also
+adopted by `cheesy-scribe` (CHEESE-16, 2026-09-06; Android only, same pin,
+~2–4 min with its widget-test suite). Adopter notes:
 
 - **Pin `flutter-version`.** Empty means latest stable, which drifts.
 - `dart format` does **not** honour `analysis_options.yaml` excludes — every

@@ -8,7 +8,7 @@ One mans dream to make it out, and build the things he wants.  No deadlines, no 
 
 See [`docs/branching-and-release.md`](docs/branching-and-release.md). Every repo, with or without a release pipeline: `main` is the released state; work accumulates on a `vX.Y.Z/main` release branch named for the version it will ship; topic branches are `vX.Y.Z/<KEY>-N-topic` and PR into the release branch; the release branch reaches `main` via a release PR. RCs are cut from the release branch, the stable release on merge. The doc covers how X.Y.Z is chosen, what the manifest version means per toolchain, and why release branches get only force-push/deletion protection (a required check would reject the scripts' direct bump pushes).
 
-Adopters: `lazy-sleeper-app` (`v0.1.0/main`, first on the full flow).
+Adopters: `lazy-sleeper-app` (`v0.1.0/main`, first on the full flow), `cheesy-scribe` (`v0.2.0/main`; first stable release through the flow, `v0.1.0`, 2026-10-12).
 
 ### Release notes generation
 
@@ -39,7 +39,7 @@ Adopters: `claude-observability-gui` (tag-push releases), pattern originated in 
 
 See [`docs/branch-protection-ruleset.md`](docs/branch-protection-ruleset.md) for the standard: a repository ruleset (not classic branch protection) that blocks force-pushes and deletion of the default branch, requires PRs with a passing named CI check, and disallows all bypass — including admins. A second, lighter ruleset covers release branches (`v*/main`): no force-push or deletion, nothing else. Includes the replication `gh api` commands for both, per-repo adaptation notes (CI job name, multiple required checks), an update flow for existing rulesets (`PUT`, not `PATCH` — the latter 404s), and verification steps.
 
-Adopters: `anvil` (source of truth), `claude-observability-gui` (first mirror), `lazy-sleeper-app` (ruleset 21023856, required check `ci / ci`).
+Adopters: `anvil` (source of truth), `claude-observability-gui` (first mirror), `lazy-sleeper-app` (ruleset 21023856, required check `ci / ci`), `cheesy-scribe` (ruleset 20916528, required check `ci / ci`; release-branch ruleset 22367582).
 
 ### CI / validation (TypeScript & Electron)
 
@@ -70,7 +70,7 @@ jobs:
 
 `ci-flutter.yml` — `flutter pub get` → `dart format` → `flutter analyze` → `flutter test`. Pin `flutter-version` in the caller. `dart format` does not honour `analysis_options.yaml` excludes, so every `.dart` file in the repo (including any under `docs/`) must be formatted. Also used as the release gate by `release-flutter.yml` (nested reusable), so a repo's `ci.yml` and `release.yml` should pass the same `flutter-version`.
 
-Adopters: `lazy-sleeper-app` (first adopter, LS-39 PR #1, 2026-08-28 — passed unchanged, ~1m25s–2m05s on `ubuntu-latest` with `flutter-version: '3.47.2'`).
+Adopters: `lazy-sleeper-app` (first adopter, LS-39 PR #1, 2026-08-28 — passed unchanged, ~1m25s–2m05s on `ubuntu-latest` with `flutter-version: '3.47.2'`), `cheesy-scribe` (CHEESE-16, 2026-09-06).
 
 ### Release pipeline
 
@@ -90,7 +90,7 @@ Not yet adopted — `claude-observability-gui` is the intended first adopter (it
 
 `bump-version.ps1` / `bump-version.sh` (identical behaviour; vendor both into the caller's `scripts/release/`) are the pubspec adapter for `rc-tag.js` / `release-tag.js`, with one deliberate difference: **the base version comes from the release-branch name** (`vX.Y.Z/main`), because `pubspec.yaml` carries the *upcoming* version from the moment the branch is cut, whereas `package.json` holds the *last shipped* one. So there is no `patch|minor|major` — the CLI is `rc` | `final` (optional `X.Y.Z` override). `rc` → `X.Y.Z-rc.N+BUILD`, commits `Release candidate X.Y.Z-rc.N`, pushes; `final` → `X.Y.Z+BUILD`, commits `X.Y.Z`, pushes, opens the release PR. `+BUILD` (Android `versionCode`) increments on every bump. Refuses to run on the default branch; `final` refuses if `vX.Y.Z` already exists. Flutter repos do not need Node.
 
-Adopters: `lazy-sleeper-app` (source, LS-73 PR #14; validated end to end by `v0.1.0-rc.1`, run `33223651283` — Windows installer + zip + signed APK, ~9 min for the full run).
+Adopters: `lazy-sleeper-app` (source, LS-73 PR #14; validated end to end by `v0.1.0-rc.1`, run `33223651283` — Windows installer + zip + signed APK, ~9 min for the full run), `cheesy-scribe` (Android only, `build-windows: false`; first adopter of `release-play-store.yml`, CHEESE-42; first stable release `v0.1.0`, run `38333242641` — signed APK + AAB and the Play internal upload, ~9 min).
 
 ### Community health files & templates
 
