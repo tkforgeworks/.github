@@ -15,7 +15,7 @@ this way so the shape is the same everywhere.
 |---|---|---|
 | `main` (or `master`) | The released state. Only ever moves by merging a release PR. | Org ruleset: PR-only, required CI check, no force-push/delete, no bypass — `docs/branch-protection-ruleset.md`. |
 | `vX.Y.Z/main` | The release branch: everything that will ship as `X.Y.Z` accumulates here. Cut from the default branch when work on the next version starts. RCs are cut from it; the stable release happens when it merges. | Second ruleset: no force-push/delete. **No** PR rule and **no** required check — see "Why release branches are only lightly protected" below. |
-| `vX.Y.Z/<KEY>-N-topic` | Topic branch. One ticket, PR into `vX.Y.Z/main`. Deleted after merge. | None. |
+| `vX.Y.Z/<KEY>-N-topic` | Topic branch. One ticket, PR into `vX.Y.Z/main`. Deleted automatically when its PR merges (repo setting, see `docs/branch-protection-ruleset.md`). | None. |
 
 Naming: `vX.Y.Z/` is a literal prefix. The topic segment follows the org
 convention `<KEY>-N-short-topic` (Jira key + number + a few words).
@@ -66,7 +66,9 @@ server-side by the release workflow when it publishes.
    `vX.Y.Z` tag. Release notes span every RC since the previous stable tag.
 5. **Next version.** Cut `vX.Y.(Z+1)/main` (or the next minor) from the
    freshly merged default branch. Delete the old release branch once its tag
-   exists.
+   exists. The release-branch ruleset blocks that deletion, so follow
+   "Deleting a finished release branch" in
+   `docs/branch-protection-ruleset.md`.
 
 Repos without a release pipeline follow steps 1, 2, and a plain PR from the
 release branch to the default branch in place of steps 3–4. The version is
@@ -98,7 +100,8 @@ add the required check without changing the scripts.
 ## Where this is enforced / referenced
 
 - `docs/branch-protection-ruleset.md` — both rulesets (default branch,
-  release branches) with replication commands.
+  release branches) with replication commands, the delete-merged-branches
+  repo setting, and how to delete a finished release branch.
 - `docs/ci-standards.md` — trigger envelope (`pull_request: branches:
   [<default-branch>, 'v*/main']`).
 - `.github/workflows/release-electron.yml`, `release-flutter.yml` —
@@ -112,6 +115,6 @@ add the required check without changing the scripts.
 | Repo | Release branch in use | Notes |
 |---|---|---|
 | lazy-sleeper-app | `v0.1.0/main` | First repo on the full flow (LS-39, 2026-08-28). `v0.1.0-rc.1` cut from it. |
-| cheesy-scribe | `v0.2.0/main` | Android only. First stable release through the full flow: `v0.1.0` (CHEESE-40, 2026-10-12) after seven RCs from `v0.1.0/main`. `v0.1.0/main` was not deleted afterwards: the release-branch ruleset blocks deletion and has no bypass, which step 5 above does not account for. |
+| cheesy-scribe | `v0.2.0/main` | Android only. First stable release through the full flow: `v0.1.0` (CHEESE-40, 2026-10-12) after seven RCs from `v0.1.0/main`. `v0.1.0/main` was deleted the same day by disabling and re-enabling the release-branch ruleset. |
 | anvil, claude-observability-gui | — | Release pipeline already expects `v*/main`; need the `'v*/main'` PR trigger in `ci.yml` and the release-branch ruleset. |
 | lazy-sleeper, TKForgeWorks_website | — | No release pipeline; adopt the branch shape only. |

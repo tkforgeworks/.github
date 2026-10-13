@@ -133,6 +133,36 @@ What it does and doesn't do, on purpose:
 
 Apply it as soon as the first release branch exists (there is no "check must have reported" prerequisite — it has no checks). Verify with `gh api repos/tkforgeworks/<REPO>/rules/branches/v0.1.0%2Fmain` (URL-encode the slash).
 
+## Companion repository setting: delete merged branches
+
+Every repo also turns on **Automatically delete head branches**. It is a repository setting (`delete_branch_on_merge`), not a ruleset rule: a ruleset can only restrict deletion, and there is no org-wide default, so it is set once per repo:
+
+```sh
+gh api -X PATCH repos/tkforgeworks/<REPO> -F delete_branch_on_merge=true
+```
+
+Verify with `gh api repos/tkforgeworks/<REPO> --jq .delete_branch_on_merge`.
+
+- **Topic branches go away when their PR merges.** Only a merged PR triggers it: a branch whose PR was closed unmerged, or that never had a PR, is still deleted by hand.
+- **Release branches are not auto-deleted.** The release PR's head is `vX.Y.Z/main`, and per GitHub's docs "repository rules can also prevent branches being automatically deleted", so the `deletion` rule above still holds. Not yet observed here: cheesy-scribe's 0.2.0 release PR will be the first merge with both in place. A finished release branch is removed by hand (next section).
+- **Stacked PRs.** GitHub's docs say open PRs based on a merged, deleted head branch are retargeted to the merged PR's base. Not yet relied on here; until it has been seen to work, retarget dependents first (`gh api -X PATCH repos/tkforgeworks/<REPO>/pulls/<N> -f base=<branch>`).
+
+Set on every tkforgeworks repo on 2026-10-12 (all 15, none archived; cheesy-scribe first). It is not inherited, so **a new repo needs it set when it is created**. Audit with:
+
+```sh
+gh api orgs/tkforgeworks/repos --paginate --jq '.[] | select(.archived|not) | "\(.name)\t\(.delete_branch_on_merge)"'
+```
+
+## Deleting a finished release branch
+
+Step 5 of the flow in `docs/branching-and-release.md` deletes the old release branch once its tag exists. The `release-branches` ruleset blocks that and has no bypass, so it takes the disable/re-enable escape hatch. Done once so far: cheesy-scribe `v0.1.0/main` on 2026-10-12, after `v0.1.0`.
+
+1. **Check the branch is finished:** the `vX.Y.Z` tag exists, the branch is contained in the default branch (`git merge-base --is-ancestor origin/vX.Y.Z/main origin/main`), and no open PR uses it as base or head.
+2. **Disable the ruleset:** `PUT` its full body with `"enforcement": "disabled"` (see "Updating an existing ruleset").
+3. **Delete the branch:** `git push origin --delete vX.Y.Z/main`.
+4. **Re-enable straight away:** `PUT` the same body with `"enforcement": "active"`, whether or not the delete succeeded. While the ruleset is disabled every `v*/main` branch is unprotected, including the one in use, so do nothing else in between.
+5. **Verify:** the ruleset reads back `active` with both rules, and `gh api repos/tkforgeworks/<REPO>/rules/branches/<current release branch>` lists them.
+
 ## Updating an existing ruleset
 
 The commands above are `POST` (create) — re-running one against a repo that already has a ruleset of that name will fail on the duplicate name rather than update it. To change a mirrored ruleset (new CI job name, added check, adjusted parameters):
