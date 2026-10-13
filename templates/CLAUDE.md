@@ -28,6 +28,8 @@ root free of it). Replace every <placeholder>. Delete sections that don't apply.
   deletion, **no bypass actors** (not even admins). Required check: `<job name>`.
   Release branches (`v*/main`) have a second ruleset: no force-push/deletion,
   no required check (the bump scripts push to them directly).
+  Topic branches are deleted automatically when their PR merges (repo
+  setting); a finished release branch is deleted by hand.
   Standard: `tkforgeworks/.github/docs/branch-protection-ruleset.md`.
 - CI consumes the shared reusable workflow
   `tkforgeworks/.github/.github/workflows/<ci-typescript|ci-electron|ci-python|ci-flutter>.yml@main`.
