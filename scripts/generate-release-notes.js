@@ -10,6 +10,7 @@
  *
  * A stable release (no prerelease suffix in the tag) diffs against the
  * previous STABLE tag, so final-release notes span all release candidates.
+ * A first stable release has no such tag and covers the whole history.
  *
  * Works for both tag-triggered releases (the current tag already exists)
  * and push-triggered releases (the tag is created after notes generation —
@@ -58,8 +59,10 @@ function findPreviousTag(current, tags) {
   // current version is absent from the list and every existing tag is older.
   const candidates = idx >= 0 ? tags.slice(idx + 1) : tags
   if (current && !isPrerelease(current)) {
-    const prevStable = candidates.find((t) => !isPrerelease(t))
-    if (prevStable) return prevStable
+    // No earlier stable tag means this is the first stable release: return
+    // null so the notes cover the whole history, not just the commits since
+    // the last release candidate.
+    return candidates.find((t) => !isPrerelease(t)) || null
   }
   return candidates.length > 0 ? candidates[0] : null
 }
