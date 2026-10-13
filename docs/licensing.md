@@ -116,5 +116,7 @@ Every public repo should read `apache-2.0`.
 - Rollout PRs opened 2026-09-03 (update as they merge): anvil #18,
   claude-observability-gui #23, TKForgeWorks_website #16, lazy-sleeper #48,
   cheesy-scribe #2, lazy-sleeper-app #15 (into `v0.1.0/main`).
+- `cheesy-scribe` — #2 merged into `v0.1.0/main` on 2026-09-05 and reached
+  `main` with the `v0.1.0` release (2026-10-12); GitHub detects `apache-2.0`.
 - `robo-narc` is an empty repo (no commits) — the script skips it; add
   LICENSE/NOTICE with its first commit.

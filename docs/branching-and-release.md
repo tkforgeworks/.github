@@ -112,5 +112,6 @@ add the required check without changing the scripts.
 | Repo | Release branch in use | Notes |
 |---|---|---|
 | lazy-sleeper-app | `v0.1.0/main` | First repo on the full flow (LS-39, 2026-08-28). `v0.1.0-rc.1` cut from it. |
+| cheesy-scribe | `v0.2.0/main` | Android only. First stable release through the full flow: `v0.1.0` (CHEESE-40, 2026-10-12) after seven RCs from `v0.1.0/main`. `v0.1.0/main` was not deleted afterwards: the release-branch ruleset blocks deletion and has no bypass, which step 5 above does not account for. |
 | anvil, claude-observability-gui | — | Release pipeline already expects `v*/main`; need the `'v*/main'` PR trigger in `ci.yml` and the release-branch ruleset. |
 | lazy-sleeper, TKForgeWorks_website | — | No release pipeline; adopt the branch shape only. |
