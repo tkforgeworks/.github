@@ -147,9 +147,11 @@ Verify with `gh api repos/tkforgeworks/<REPO> --jq .delete_branch_on_merge`.
 - **Release branches are not auto-deleted.** The release PR's head is `vX.Y.Z/main`, and per GitHub's docs "repository rules can also prevent branches being automatically deleted", so the `deletion` rule above still holds. Not yet observed here: cheesy-scribe's 0.2.0 release PR will be the first merge with both in place. A finished release branch is removed by hand (next section).
 - **Stacked PRs.** GitHub's docs say open PRs based on a merged, deleted head branch are retargeted to the merged PR's base. Not yet relied on here; until it has been seen to work, retarget dependents first (`gh api -X PATCH repos/tkforgeworks/<REPO>/pulls/<N> -f base=<branch>`).
 
-| Repo | Set |
-|---|---|
-| cheesy-scribe | 2026-10-12 |
+Set on every tkforgeworks repo on 2026-10-12 (all 15, none archived; cheesy-scribe first). It is not inherited, so **a new repo needs it set when it is created**. Audit with:
+
+```sh
+gh api orgs/tkforgeworks/repos --paginate --jq '.[] | select(.archived|not) | "\(.name)\t\(.delete_branch_on_merge)"'
+```
 
 ## Deleting a finished release branch
 
