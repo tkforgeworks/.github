@@ -42,9 +42,14 @@
 # ubuntu-latest, signed from android/key.properties
 # which this workflow writes from the ANDROID_KEYSTORE_* secrets (the script
 # sees ANDROID_SIGNING=release, or =debug when the caller opted into
-# `android-signing: optional` for a keystore-less dry run). Release notes come
-# from release-notes.yml, which needs the JIRA_BASE_URL repo/org variable for
-# ticket linking.
+# `android-signing: optional` for a keystore-less dry run). Build-time
+# configuration (a Supabase URL and key, an OAuth client ID: public values
+# that must not be committed) travels as --dart-defines: the caller's
+# optional DART_DEFINES_JSON secret holds the --dart-define-from-file JSON,
+# this workflow writes it to config/release.json before build-android.sh
+# runs and exports DART_DEFINES_FILE naming it (TKFW-84); the script passes
+# the file to flutter build. Release notes come from release-notes.yml, which
+# needs the JIRA_BASE_URL repo/org variable for ticket linking.
 #
 # Immutable releases lock assets at publish time, so the release is created
 # as a draft, assets uploaded, then published via the API.
@@ -120,6 +125,14 @@ on:
         required: false
       ANDROID_KEY_ALIAS:
         description: 'Key alias in the keystore'
+        required: false
+      DART_DEFINES_JSON:
+        description: >-
+          Optional --dart-define-from-file JSON ({"KEY": "value", ...}) for
+          build-android: written to config/release.json, with
+          DART_DEFINES_FILE exported for build-android.sh. Public values
+          only (they ship inside the APK); leave unset for an app with no
+          build-time configuration.
         required: false
 
 permissions:
@@ -249,6 +262,22 @@ jobs:
             echo "keyAlias=$KEY_ALIAS"
             echo "storeFile=../upload-keystore.jks"
           } > android/key.properties
+      - name: Write build defines from secrets
+        env:
+          DART_DEFINES_JSON: ${{ secrets.DART_DEFINES_JSON }}
+        run: |
+          if [ -z "$DART_DEFINES_JSON" ]; then
+            echo "DART_DEFINES_JSON is not set — building without --dart-defines"
+            exit 0
+          fi
+          if ! echo "$DART_DEFINES_JSON" | jq -e 'type == "object"' >/dev/null; then
+            echo "::error::DART_DEFINES_JSON must be a JSON object of define names to string values"
+            exit 1
+          fi
+          mkdir -p config
+          printf '%s\n' "$DART_DEFINES_JSON" > config/release.json
+          echo "DART_DEFINES_FILE=config/release.json" >> "$GITHUB_ENV"
+          echo "Wrote $(echo "$DART_DEFINES_JSON" | jq 'keys | length') build define(s) to config/release.json"
       - name: Build signed APK (+ AAB)
         run: bash scripts/release/build-android.sh
       # The AAB is optional: callers that ship to Google Play emit one next to

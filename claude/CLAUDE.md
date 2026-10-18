@@ -186,7 +186,13 @@ before doing that work in either repo.
   repo with no Jira project), `default-branch`,
   `flutter-channel`, `java-version`, `build-windows`, `build-android`.
   Secrets (`required: false`, caller passes `secrets: inherit`):
-  `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`.
+  `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`,
+  and `DART_DEFINES_JSON` (TKFW-84, 2026-10-18): a `--dart-define-from-file`
+  JSON object of public build-time configuration (Supabase URL and key,
+  OAuth client ID), written to `config/release.json` with
+  `DART_DEFINES_FILE` exported so `build-android.sh` passes it to
+  `flutter build`; unset means a plain build. First consumer cheesy-scribe
+  (CHEESE-59).
 - Caller script contract: `scripts/release/build-windows.ps1` →
   `release/*.exe` (+`*.zip`); `scripts/release/build-android.sh` →
   `release/*.apk` (+ optional `release/*.aab`, the Google Play bundle,
