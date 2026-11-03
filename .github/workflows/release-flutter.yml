@@ -37,7 +37,13 @@
 #       secrets: inherit
 #
 # Script contract (caller's scripts/release/): build-windows.ps1 producing
-# release/*.exe (+ optional *.zip) on windows-latest; build-android.sh
+# release/*.exe (+ optional *.zip) on windows-latest; build-linux.sh
+# (build-linux: true only, off by default) producing release/*.AppImage,
+# *.deb and *.rpm (any non-empty subset) on ubuntu-22.04, which this workflow
+# prepares with the Flutter Linux toolchain packages only, so the script
+# fetches its own packaging tools; 22.04 keeps the binary's glibc floor at
+# 2.35 so the packages run on Debian 12 and Ubuntu 22.04 and later;
+# build-android.sh
 # producing release/*.apk (+ optional release/*.aab, the Play Store bundle) on
 # ubuntu-latest, signed from android/key.properties
 # which this workflow writes from the ANDROID_KEYSTORE_* secrets (the script
@@ -90,6 +96,14 @@ on:
         required: false
         type: boolean
         default: true
+      build-linux:
+        description: >-
+          Build the Linux packages (AppImage, deb, rpm) on ubuntu-22.04 with
+          the caller's scripts/release/build-linux.sh. Off by default: most
+          Flutter adopters ship no Linux build.
+        required: false
+        type: boolean
+        default: false
       build-android:
         description: 'Build the signed Android APK on ubuntu-latest'
         required: false
@@ -223,6 +237,35 @@ jobs:
             release/*.zip
           if-no-files-found: error
 
+  build-linux:
+    if: needs.check-release.outputs.should-release == 'true' && inputs.build-linux
+    needs: [check-release, gate]
+    # Pinned, not ubuntu-latest: the oldest supported image keeps the glibc
+    # floor of the binary low enough for Debian 12 / Ubuntu 22.04 users.
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install Flutter Linux toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build pkg-config \
+            libgtk-3-dev liblzma-dev libstdc++-12-dev
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ inputs.flutter-version }}
+          channel: ${{ inputs.flutter-channel }}
+          cache: true
+      - name: Build packages
+        run: bash scripts/release/build-linux.sh
+      - uses: actions/upload-artifact@v7
+        with:
+          name: installers-linux
+          path: |
+            release/*.AppImage
+            release/*.deb
+            release/*.rpm
+          if-no-files-found: error
+
   build-android:
     if: needs.check-release.outputs.should-release == 'true' && inputs.build-android
     needs: [check-release, gate]
@@ -301,8 +344,9 @@ jobs:
       needs.release-notes.result == 'success' &&
       needs.gate.result == 'success' &&
       needs.build-windows.result != 'failure' && needs.build-windows.result != 'cancelled' &&
+      needs.build-linux.result != 'failure' && needs.build-linux.result != 'cancelled' &&
       needs.build-android.result != 'failure' && needs.build-android.result != 'cancelled'
-    needs: [check-release, release-notes, gate, build-windows, build-android]
+    needs: [check-release, release-notes, gate, build-windows, build-linux, build-android]
     runs-on: ubuntu-latest
     outputs:
       released: ${{ steps.published.outputs.released }}
@@ -323,6 +367,9 @@ jobs:
           files: |
             release/*.exe
             release/*.zip
+            release/*.AppImage
+            release/*.deb
+            release/*.rpm
             release/*.apk
             release/*.aab
           body: ${{ needs.release-notes.outputs.body }}

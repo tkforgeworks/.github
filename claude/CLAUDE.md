@@ -180,11 +180,12 @@ before doing that work in either repo.
   promoted here unchanged apart from the header. Job for job the Electron
   twin: `check-release` (pubspec `version:`, `+BUILD` stripped) →
   `release-notes` + `gate` (`uses: ci-flutter.yml`) → `build-windows` /
-  `build-android` → `publish` (`if: always()` so a platform switched off by
+  `build-linux` / `build-android` → `publish` (`if: always()` so a platform switched off by
   input doesn't skip publishing; a failed one still blocks).
 - Inputs: `flutter-version` (required), `ticket-prefix` (optional; omit in a
   repo with no Jira project), `default-branch`,
-  `flutter-channel`, `java-version`, `build-windows`, `build-android`.
+  `flutter-channel`, `java-version`, `build-windows`, `build-linux`
+  (default `false`; added 2026-11-03 for Anvil, ANVL-168), `build-android`.
   Secrets (`required: false`, caller passes `secrets: inherit`):
   `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`,
   and `DART_DEFINES_JSON` (TKFW-84, 2026-10-18): a `--dart-define-from-file`
@@ -194,7 +195,11 @@ before doing that work in either repo.
   `flutter build`; unset means a plain build. First consumer cheesy-scribe
   (CHEESE-59).
 - Caller script contract: `scripts/release/build-windows.ps1` →
-  `release/*.exe` (+`*.zip`); `scripts/release/build-android.sh` →
+  `release/*.exe` (+`*.zip`); `scripts/release/build-linux.sh` → any of
+  `release/*.AppImage`, `*.deb`, `*.rpm`, run on `ubuntu-22.04` (pinned for
+  a glibc 2.35 floor) after only `clang cmake ninja-build pkg-config
+  libgtk-3-dev liblzma-dev libstdc++-12-dev`, so the script downloads its own
+  packaging tools; `scripts/release/build-android.sh` →
   `release/*.apk` (+ optional `release/*.aab`, the Google Play bundle,
   uploaded and published next to the APK); `release/` gitignored.
 - `bump-version.{ps1,sh}` — standalone pubspec adapter (Flutter repos don't
