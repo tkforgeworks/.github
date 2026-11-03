@@ -196,8 +196,8 @@ before doing that work in either repo.
   (CHEESE-59).
 - Caller script contract: `scripts/release/build-windows.ps1` →
   `release/*.exe` (+`*.zip`); `scripts/release/build-linux.sh` → any of
-  `release/*.AppImage`, `*.deb`, `*.rpm`, run on `ubuntu-22.04` (pinned for
-  a glibc 2.35 floor) after only `clang cmake ninja-build pkg-config
+  `release/*.AppImage`, `*.deb`, `*.rpm`, run on `ubuntu-22.04` (pinned so
+  the glibc floor stays at or under 2.35) after only `clang cmake ninja-build pkg-config
   libgtk-3-dev liblzma-dev libstdc++-12-dev`, so the script downloads its own
   packaging tools; `scripts/release/build-android.sh` →
   `release/*.apk` (+ optional `release/*.aab`, the Google Play bundle,
