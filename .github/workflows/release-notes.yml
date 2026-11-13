@@ -7,6 +7,9 @@
 #       uses: tkforgeworks/.github/.github/workflows/release-notes.yml@main
 #       with:
 #         ticket-prefix: CGUI
+#         exclude-paths: |
+#           docs/archive/**
+#         exclude-default-paths: true  # false replaces the default excludes
 #
 #     build:
 #       needs: release-notes
@@ -38,6 +41,16 @@ on:
         required: false
         type: string
         default: ''
+      exclude-paths:
+        description: 'Newline-separated path globs added to the default excludes'
+        required: false
+        type: string
+        default: ''
+      exclude-default-paths:
+        description: 'Exclude commits changing only .claude/**, **/CLAUDE.md, or AGENTS.md'
+        required: false
+        type: boolean
+        default: true
     outputs:
       body:
         description: 'Generated release-notes markdown'
@@ -77,3 +90,5 @@ jobs:
           JIRA_BASE_URL: ${{ inputs.jira-base-url || vars.JIRA_BASE_URL }}
           RELEASE_VERSION: ${{ inputs.release-version || github.ref_name }}
           TICKET_PREFIX: ${{ inputs.ticket-prefix }}
+          EXCLUDE_PATHS: ${{ inputs.exclude-paths }}
+          EXCLUDE_DEFAULT_PATHS: ${{ inputs.exclude-default-paths }}

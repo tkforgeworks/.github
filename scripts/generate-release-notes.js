@@ -6,7 +6,8 @@
  * Builds release-notes markdown from commit subjects since the previous
  * tag. Version-bump and merge commits are filtered out; subjects are split into
  * "Bug Fixes" (subject starts with "fix", or "<TICKET>-N: Fix ...") and
- * "Changes"; Jira ticket keys are linked when configured.
+ * "Changes"; Jira ticket keys are linked when configured. Commits changing only
+ * excluded paths are skipped; identical trimmed subjects appear once (first wins).
  *
  * A stable release (no prerelease suffix in the tag) diffs against the
  * previous STABLE tag, so final-release notes span all release candidates.
@@ -23,6 +24,10 @@
  *                   ANV); unset disables ticket handling
  *  JIRA_BASE_URL    e.g. https://tkforgeworks.atlassian.net/browse —
  *                   when set (with TICKET_PREFIX), keys become links
+ *
+ *  EXCLUDE_PATHS    newline-separated globs added to the default excludes
+ *  EXCLUDE_DEFAULT_PATHS  false disables defaults (the .claude tree, CLAUDE.md
+ *                   at any depth, and root AGENTS.md)
  *
  * Canonical home: tkforgeworks/.github — consume via the release-notes.yml
  * reusable workflow rather than copying this file into repos.
@@ -69,11 +74,53 @@ function findPreviousTag(current, tags) {
 
 function getCommits(since) {
   const range = since ? `${since}..HEAD` : 'HEAD'
-  const raw = git(`log ${range} --no-merges --format="%h|||%s"`)
+  const raw = git(`-c core.quotePath=false log ${range} --no-merges --name-only -z --format="%x1e%h%x00%s"`)
   if (!raw) return []
-  return raw.split('\n').map((line) => {
-    const [hash, ...rest] = line.split('|||')
-    return { hash, message: rest.join('|||') }
+  return raw.split('\x1e').filter(Boolean).map((record) => {
+    const [hash, message, ...files] = record.split('\0')
+    return { hash, message: message.trim(), files: files.map((file) => file.replace(/^\n/, '')).filter(Boolean) }
+  })
+}
+
+function globToRegExp(glob) {
+  let pattern = ''
+  for (let i = 0; i < glob.length; i++) {
+    const char = glob[i]
+    if (char === '*' && glob[i + 1] === '*') {
+      if (glob[i + 2] === '/') {
+        pattern += '(?:.*/)?'
+        i += 2
+      } else {
+        pattern += '.*'
+        i++
+      }
+    } else if (char === '*') {
+      pattern += '[^/]*'
+    } else if (char === '?') {
+      pattern += '[^/]'
+    } else {
+      pattern += char.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    }
+  }
+  return new RegExp(`^${pattern}$`)
+}
+
+function excludePatterns() {
+  const defaults = process.env.EXCLUDE_DEFAULT_PATHS === 'false'
+    ? [] : ['.claude/**', '**/CLAUDE.md', 'AGENTS.md']
+  const extra = (process.env.EXCLUDE_PATHS || '').split('\n').map((path) => path.trim()).filter(Boolean)
+  return [...defaults, ...extra].map(globToRegExp)
+}
+
+function filterCommits(commits) {
+  const patterns = excludePatterns()
+  const seen = new Set()
+  return commits.filter((commit) => {
+    if (isReleaseBump(commit.message)) return false
+    if (commit.files.length > 0 && commit.files.every((file) => patterns.some((pattern) => pattern.test(file)))) return false
+    if (seen.has(commit.message)) return false
+    seen.add(commit.message)
+    return true
   })
 }
 
@@ -100,7 +147,7 @@ function run() {
   const current = currentVersion(tags)
   const prevTag = findPreviousTag(current, tags)
   const commits = getCommits(prevTag)
-  const filtered = commits.filter((c) => !isReleaseBump(c.message))
+  const filtered = filterCommits(commits)
 
   if (filtered.length === 0) {
     console.log('No notable changes in this release.')
