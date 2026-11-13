@@ -14,6 +14,8 @@ Adopters: `lazy-sleeper-app` (`v0.1.0/main`, first on the full flow), `cheesy-sc
 
 `scripts/generate-release-notes.js` + the `release-notes.yml` reusable workflow build release bodies from commit subjects since the previous tag: version-bump and merge commits filtered, subjects split into Changes vs Bug Fixes (bug-fix subjects start with `Fix` or `<KEY>-N: Fix ...`), Jira ticket keys auto-linked. Stable releases diff against the previous *stable* tag so final notes span all release candidates; a first stable release has none and covers the whole history. Works whether the release tag already exists (tag-triggered) or is created after notes generation (push-triggered — pass `release-version`).
 
+Commits changing only `.claude/**`, `**/CLAUDE.md` (including root `CLAUDE.md`), or `AGENTS.md` are skipped; mixed commits and commits with no changed files are kept. Add newline-separated globs with `exclude-paths`; set `exclude-default-paths: false` to replace the defaults. Identical trimmed subjects appear once, keeping the first in git-log order.
+
 Consume from any repo''s release workflow:
 
 ```yaml

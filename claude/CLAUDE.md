@@ -48,6 +48,10 @@ Behavior: version-bump and merge commits are filtered out; subjects split into
 `ticket-prefix` are set. Stable releases diff against the previous *stable*
 tag so final notes span all RCs. Supports both tag-triggered (tag exists
 already) and push-triggered (pass `release-version` explicitly) callers.
+Commits whose changed files all match the exclude list are skipped (defaults
+`.claude/**`, `**/CLAUDE.md`, `AGENTS.md`; extend with the `exclude-paths`
+input, replace with `exclude-default-paths: false`), and identical subjects
+appear once (TKFW-92).
 
 Consume from a repo's release workflow:
 
@@ -337,6 +341,16 @@ before doing that work in either repo.
 Newest first. One entry per notable change — what changed and why, not a
 line-by-line diff (git history already has that).
 
+- **2026-11-13** — Release notes skip agent-doc-only commits and duplicate
+  subjects (TKFW-92). Found preparing COG 2.0.0: its notes listed every
+  "Document … in CLAUDE.md" commit and "Add Apache-2.0 LICENSE and NOTICE"
+  twice. `getCommits()` now reads each commit's files (`--name-only -z`); a
+  commit is dropped when every file matches the excludes, and a small
+  in-script glob matcher keeps the script dependency-free on Node 22. New
+  optional inputs `exclude-paths` and `exclude-default-paths` (default
+  `true`), so existing callers get the defaults with no change. Re-rendering
+  COG `v2.0.0/main` against v1.2.1 went from 48 to 39 lines with every
+  Bug Fixes line kept. A `Release-Notes: skip` trailer was left out.
 - **2026-10-11** — anvil's default branch renamed `master` → `main`
   (ANVL-145), so every tkforgeworks repo is now on `main`. Updated the
   places that cited anvil as the `master` example (`README.md`, this file,
