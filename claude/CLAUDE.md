@@ -232,6 +232,10 @@ before doing that work in either repo.
 - **Adopters:** none yet. Intended first: claude-observability-gui (source).
   anvil deliberately NOT targeted for now (being worked separately;
   ANVL-124/138 cover its own pin bumps).
+- COG stays on Electron 41 and react-router 6 with accepted advisories while
+  its app builds are planned to move to Flutter; see
+  `docs/cog-flutter-plan.md` before any dependency audit of COG. CI's
+  `npm audit --omit=dev` never reports Electron (it is a devDependency).
 
 ### Community health files & `templates/`
 
@@ -337,6 +341,14 @@ before doing that work in either repo.
 Newest first. One entry per notable change — what changed and why, not a
 line-by-line diff (git history already has that).
 
+- **2026-11-13** — Added `docs/cog-flutter-plan.md` (TKFW-94): the plan to
+  move COG's app builds to Flutter (timeline and scope not decided), the
+  Electron 41 and react-router 6 advisories accepted until then with why
+  each doesn't reach COG, and the triggers that reopen the decision. Decided
+  at the COG 2.0.0 close-out (CGUI-148, 2026-11-03), where the Electron 42
+  upgrade and react-router 7 migration were declined. Linked from both
+  README Electron sections; `docs/ci-standards.md` now notes that
+  `npm audit --omit=dev` leaves Electron out.
 - **2026-10-11** — anvil's default branch renamed `master` → `main`
   (ANVL-145), so every tkforgeworks repo is now on `main`. Updated the
   places that cited anvil as the `master` example (`README.md`, this file,

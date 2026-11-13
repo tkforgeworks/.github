@@ -43,6 +43,8 @@ Adopters: `anvil` (source of truth), `claude-observability-gui` (first mirror), 
 
 ### CI / validation (TypeScript & Electron)
 
+See [COG's Flutter plan and accepted advisories](docs/cog-flutter-plan.md) for its Electron/react-router decision and the Electron gap in `npm audit --omit=dev`.
+
 See [`docs/ci-standards.md`](docs/ci-standards.md) for the standard: two composable reusable workflows, `ci-typescript.yml` (generic lint/typecheck/test/audit/build for any TS/Node repo) and `ci-electron.yml` (layers electronegativity, native-module rebuild check, and an `electron-builder --dir` packaging dry-run on top). Requires a fixed `lint`/`typecheck`/`test`/`build` npm script contract in the caller. `lint` and the Electron-specific checks are intentionally non-blocking for now — see the doc for why and the per-repo adoption checklist.
 
 Not yet adopted by any repo — `anvil`, `claude-observability-gui`, and `TKForgeWorks_website` (plain TS, a 1:1 fit for `ci-typescript.yml`) are the intended first adopters (see the doc's adoption checklist for what each needs first).
@@ -77,6 +79,8 @@ Adopters: `lazy-sleeper-app` (first adopter, LS-39 PR #1, 2026-08-28 — passed 
 Tagless RC → stable model shared by every toolchain: version bumps are ordinary commits made by a vendored script, the release workflow self-gates on whether `v{version}` already exists and on branch/version legality (RCs only from `vX.Y.Z/main` release branches, stable only from the default branch), and the tag is created server-side when the release is published — so it works under a no-bypass ruleset. Both workflows consume `release-notes.yml` internally. Never hand-edit the version or push tags.
 
 #### Electron — `release-electron.yml` + `scripts/release/{rc-tag,release-tag}.js`
+
+See [COG's Flutter plan and accepted advisories](docs/cog-flutter-plan.md) for the planned move of its app builds to Flutter and what remains undecided.
 
 `release-electron.yml` — extracted from `claude-observability-gui` (CGUI-65, originally anvil): `check-release` → `release-notes` + `gate` (typecheck/test) → `build` matrix over `runs-on-json` → `publish` (draft, then published). Script contract: `typecheck`/`test`/`build`/`dist` (+ optional `rebuild`). `rc-tag.js <patch|minor|major>` bumps to `X.Y.Z-rc.N` on the release branch; `release-tag.js final` bumps to `X.Y.Z` and opens the release PR (run from the default branch it creates `vX.Y.Z/main` first). Vendor the two scripts into the caller's `scripts/release/` and wire the `rc:*` / `release:*` npm scripts. See the workflow header for the caller wrapper.
 

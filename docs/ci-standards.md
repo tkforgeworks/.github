@@ -144,6 +144,13 @@ devDependency in both.
 | native module rebuild check | **No** | Net-new as a CI step (the `rebuild` script exists but was never run in CI) |
 | packaging dry-run (`electron-builder --dir`) | **No** | Net-new as a CI step |
 
+**Electron audit gap:** `npm audit --omit=dev --audit-level=high` in
+`ci-typescript.yml` excludes `electron` because it is a devDependency, even
+though it is the shipped runtime. Audit Electron repos with the full
+`npm audit` or check `electron` separately; CI will not surface Electron
+advisories. See [COG's Flutter plan and accepted advisories](cog-flutter-plan.md)
+for its accepted findings and reopen triggers.
+
 Deliberate choice: land the checks now so they're visible (warnings in the
 Actions UI) without turning them into a merge-blocker before the underlying
 configs exist. Revisit promoting `lint` (and the others) to blocking once
